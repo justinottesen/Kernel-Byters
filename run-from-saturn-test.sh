@@ -1,0 +1,1 @@
+ ./gradlew runFromSaturn -PclassLocationA=data/bin0/ -PclassLocationB=data/bin1/
