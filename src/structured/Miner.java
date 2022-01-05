@@ -2,8 +2,8 @@ package structured;
 import battlecode.common.*;
 
 public class Miner extends RobotLogic {
-	Direction dir = directions[rng.nextInt(directions.length)];
-	MapLocation m=null;
+	private static Direction dir = directions[rng.nextInt(directions.length)];
+	private static MapLocation m=null;
 	@Override
 	public boolean run(RobotController rc) throws GameActionException{
 		// Try to mine on squares around us.
