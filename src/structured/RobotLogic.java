@@ -37,4 +37,15 @@ public abstract class RobotLogic {
         }
         return false;
 	}
+	
+    public int locToComm(MapLocation loc) {
+    	return 60*loc.x + loc.y;
+    }
+    
+    public MapLocation commToLoc(int commVal) {
+    	int y = commVal % 60;
+    	int x = commVal-y / 60;
+    	return new MapLocation(x, y);
+    }
+
 }
