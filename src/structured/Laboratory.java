@@ -2,23 +2,26 @@ package structured;
 import battlecode.common.*;
 public class Laboratory extends RobotLogic{
 	public boolean run(RobotController rc) throws GameActionException{
-		int leadToTransmute=getAmountToTransmute(rc);
-		int rate=rc.getTransmutationRate();
-		int numOfTransmutations=leadToTransmute/rate;
-		for(int i=0;i<numOfTransmutations;++i) {
-			if(rc.canTransmute()) {
-				rc.transmute();
-			}
+		postTransmutationRate(rc);
+		
+		if(shouldTransmute(rc)&&rc.canTransmute()) {
+			rc.transmute();
 		}
 		
 		//distress signal code
 		distressSignal(rc);
 		return true;
 	}
-	//todo: get the amount of lead to transmute
-	private int getAmountToTransmute(RobotController rc) throws GameActionException{
+	//todo: post transmutation rate
+	private void postTransmutationRate(RobotController rc) throws GameActionException{
+		int transmutationRate=rc.getTransmutationRate();
+		//post it
+		
+	}
+	//todo: get info from archon on whether to transmute
+	private boolean shouldTransmute(RobotController rc) throws GameActionException{
 		//??
-		return 69;
+		return false;
 	}
 	//todo: communicate distress
 	private void distressSignal(RobotController rc) throws GameActionException{
