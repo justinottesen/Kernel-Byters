@@ -3,39 +3,104 @@ import battlecode.common.*;
 public class Soldier extends RobotLogic {
 	private static MapLocation assignment=null;
 	public boolean run(RobotController rc) throws GameActionException{
+		RobotInfo target=makeLikeTheFireNation(rc);
 		//attack anyone within range
-		makeLikeTheFireNation(rc);
-
-		//move
-        shmovement(rc);
+		if(target!=null) {
+			//if it sees threat, micro
+			microThatBitch(rc,target);
+		}else {
+			//if it doesn't see a threat, move normally
+			assignment=super.allAboard(rc);
+			chooChoo(rc,assignment);
+		}
         return true;
 	}
-	private void makeLikeTheFireNation(RobotController rc) throws GameActionException{
-		// Try to attack someone
-        int radius = rc.getType().actionRadiusSquared;
+	//returns true if it sees attacking units
+	private RobotInfo makeLikeTheFireNation(RobotController rc) throws GameActionException{
+		RobotInfo waterTribe=null;
+		// Try to attack the waterTribe (enemy robot)
+		// Target fire weaker opponents
+		// Target fire soldiers, then archons, then everything else
         Team opponent = rc.getTeam().opponent();
-        RobotInfo[] enemies = rc.senseNearbyRobots(radius, opponent);
+        RobotInfo[] enemies = rc.senseNearbyRobots(13, opponent);
         if (enemies.length > 0) {
-            MapLocation toAttack = enemies[0].location;
-            if (rc.canAttack(toAttack)) {
-                rc.attack(toAttack);
-            }
+        	//separate enemies into 3 categories: attack units, archons, and other units
+        	//stores the indecies+1 since 0 is used as empty
+        	int attackUnit=-1;
+        	int lowestAttack=696969;
+        	int archon=-1;
+        	int other=-1;
+        	int lowestOther=696969;
+        	for(int i=0;i<enemies.length;++i) {
+        		RobotType type=enemies[i].getType();
+        		int hp=enemies[i].getHealth();
+        		if(type==RobotType.SOLDIER||type==RobotType.SAGE||type==RobotType.WATCHTOWER) {
+        			if(hp<lowestAttack) {
+        				lowestAttack=hp;
+        				attackUnit=i;
+        			}
+        		}else if(type==RobotType.ARCHON) {
+        			archon=i;
+        		}else {
+        			if(hp<lowestOther) {
+        				lowestOther=hp;
+        				other=i;
+        			}
+        		}
+        	}
+        	int targetFire=-1;
+        	//now looks for the lowest hp unit to target fire
+        	if(attackUnit!=-1) {
+        		//it found an attack unit
+        		targetFire=attackUnit;
+        	}else if(archon!=-1) {
+        		//it found an archon
+        		targetFire=archon;
+        	}else if(other!=-1) {//shouldn't really need the condition here
+        		//it found other unit
+        		targetFire=other;
+        	}
+        	rc.setIndicatorString("attack: "+attackUnit+", archon: "+archon+", other: "+other+", target: "+targetFire);
+        	if(targetFire>=0) {
+	            MapLocation toAttack = enemies[targetFire].location;
+	            if (rc.canAttack(toAttack)) {
+	                rc.attack(toAttack);
+	                waterTribe=enemies[targetFire];
+	            }
+        	}
         }
+        return waterTribe;
+	}
+	//flaw: only micros for stuff it can shoot at (ignores the rest of its vision radius)
+	private void microThatBitch(RobotController rc,RobotInfo target) throws GameActionException{
+		//only micro if it sees attacking threats
+		RobotType type=target.getType();
+		if(type==RobotType.SOLDIER||type==RobotType.SAGE||type==RobotType.WATCHTOWER) {
+			//retreat if self is weak (1/3 health or less)
+			if(rc.getHealth()<rc.getType().getMaxHealth(0)/3) {
+				//retreat, which means moving in the opposite direction of the enemy
+				MapLocation me=rc.getLocation();
+				MapLocation targetLoc=target.getLocation();
+				int dx=targetLoc.x-me.x;
+				int dy=targetLoc.y-me.y;
+				MapLocation retreatLoc=new MapLocation(me.x-2*dx,me.y-2*dy);
+				super.pathFind(rc,retreatLoc);
+			}else if(target.getHealth()<target.getType().getMaxHealth(target.getLevel())/3) {//pursue if enemy is weak (1/3 health or less)
+				//pursue, which means moving in the direction of the enemy
+				super.pathFind(rc,target.getLocation());
+			}
+		}else if(type==RobotType.ARCHON) {
+			//pursue archons no matter what
+			//go for the kill!
+			super.pathFind(rc,target.getLocation());
+		}
 	}
 	private void shmovement(RobotController rc) throws GameActionException{
 		if(assignment!=null) {//if has assignment
 			//move towards assignment
 			//also effectively stays at assignment once there
 			rc.setIndicatorString("assigned location: "+assignment);
-			MapLocation me = rc.getLocation();
-			Direction dir=me.directionTo(assignment);
-			if(rc.canMove(dir)) {
-        		rc.move(dir);
-        	}else if(rc.canMove(dir.rotateLeft())) { //if it can't move in the direction, tries to move 45 degrees to the left
-        		rc.move(dir.rotateLeft());
-        	}else if(rc.canMove(dir.rotateRight())) {//tries to move 45 degrees to the right
-        		rc.move(dir.rotateRight());
-        	}
+			super.pathFind(rc,assignment);
 		}else {
 			//move randomly
 			rc.setIndicatorString("no assigned location, moving randomly");
