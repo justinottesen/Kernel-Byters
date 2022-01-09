@@ -42,10 +42,6 @@ public abstract class RobotLogic {
 	public void pathFind(RobotController rc, MapLocation loc) throws GameActionException{
 		MapLocation me = rc.getLocation();
 		Direction dir=me.directionTo(loc);
-		
-		
-		decideDirection(getHemisphereTiles(rc,loc),loc,me,rc);
-		//rc.setIndicatorString("averagePassibility: "+averagePassibility);
 		if(rc.canMove(dir)) {
     		rc.move(dir);
     	}else if(rc.canMove(dir.rotateLeft())) { //if it can't move in the direction, tries to move 45 degrees to the left
@@ -55,41 +51,45 @@ public abstract class RobotLogic {
     	}
 	}
 	*/
+	///*
 	//better pathfinding
 	public void pathFind(RobotController rc, MapLocation loc) throws GameActionException{
 		MapLocation me = rc.getLocation();
-		Direction dir=me.directionTo(loc);
-		
-		int chosenDir=decideDirection(getHemisphereTiles(rc,loc),loc,me,rc);
-		if(chosenDir==0){
-			//straight
-			if(rc.canMove(dir)) {
-    			rc.move(dir);
-    		}else if(rc.canMove(dir.rotateLeft())) { //if it can't move in the direction, tries to move 45 degrees to the left
-    			rc.move(dir.rotateLeft());
-    		}else if(rc.canMove(dir.rotateRight())) {//tries to move 45 degrees to the right
-    			rc.move(dir.rotateRight());
-    		}
-		}else if(chosenDir==1) {
-			//left
-			if(rc.canMove(dir.rotateLeft())) {
-    			rc.move(dir.rotateLeft());
-    		}else if(rc.canMove(dir)) { //if it can't move in the direction, tries to move straight
-    			rc.move(dir);
-    		}else if(rc.canMove(dir.rotateRight())) {//tries to move 45 degrees to the right
-    			rc.move(dir.rotateRight());
-    		}
-		}else if(chosenDir==2) {
-			//right
-			if(rc.canMove(dir.rotateRight())) {
-    			rc.move(dir.rotateRight());
-    		}else if(rc.canMove(dir)) { //if it can't move in the direction, tries to move straight
-    			rc.move(dir);
-    		}else if(rc.canMove(dir.rotateLeft())) {//tries to move 45 degrees to the left
-    			rc.move(dir.rotateLeft());
-    		}
+		if(me.x!=loc.x||me.y!=loc.y) {
+			Direction dir=me.directionTo(loc);
+			
+			int chosenDir=decideDirection(getHemisphereTiles(rc,loc),loc,me,rc);
+			if(chosenDir==0){
+				//straight
+				if(rc.canMove(dir)) {
+	    			rc.move(dir);
+	    		}else if(rc.canMove(dir.rotateLeft())) { //if it can't move in the direction, tries to move 45 degrees to the left
+	    			rc.move(dir.rotateLeft());
+	    		}else if(rc.canMove(dir.rotateRight())) {//tries to move 45 degrees to the right
+	    			rc.move(dir.rotateRight());
+	    		}
+			}else if(chosenDir==1) {
+				//left
+				if(rc.canMove(dir.rotateLeft())) {
+	    			rc.move(dir.rotateLeft());
+	    		}else if(rc.canMove(dir)) { //if it can't move in the direction, tries to move straight
+	    			rc.move(dir);
+	    		}else if(rc.canMove(dir.rotateRight())) {//tries to move 45 degrees to the right
+	    			rc.move(dir.rotateRight());
+	    		}
+			}else if(chosenDir==2) {
+				//right
+				if(rc.canMove(dir.rotateRight())) {
+	    			rc.move(dir.rotateRight());
+	    		}else if(rc.canMove(dir)) { //if it can't move in the direction, tries to move straight
+	    			rc.move(dir);
+	    		}else if(rc.canMove(dir.rotateLeft())) {//tries to move 45 degrees to the left
+	    			rc.move(dir.rotateLeft());
+	    		}
+			}
 		}
 	}
+	//*/
 	//bytecode cost: around 3000
 	private TileData[] getHemisphereTiles(RobotController rc, MapLocation assignment) throws GameActionException{
 		MapLocation me=rc.getLocation();
@@ -222,20 +222,96 @@ public abstract class RobotLogic {
     			}
     		}
     	}
-    	rc.setIndicatorString("straight: "+passabilityScores[0]+", left: "+passabilityScores[1]+", right: "+passabilityScores[2]+", chosen: "+index);
+    	//rc.setIndicatorString("straight: "+passabilityScores[0]+", left: "+passabilityScores[1]+", right: "+passabilityScores[2]+", chosen: "+index);
     	//if(index!=1) {
     	//	System.out.println("straight not chosen!");
     	//}
     	return index;
     }
     
+    /*
+    public MapLocation allAboard(RobotController rc) throws GameActionException{
+		//we'll assume we put train destination in spot 10
+		int comm=rc.readSharedArray(10);
+		if(comm!=0) {
+			MapLocation assignment=commToLoc(comm);
+			if(rc.onTheMap(assignment)) {
+				return assignment;
+			}else {
+				return null;
+			}
+		}else {
+			return null;
+		}
+		
+	}
+    */
+    //temporary all aboard while no communications
+    //only works for player 1
+    public MapLocation allAboard(RobotController rc) throws GameActionException{
+    	if(rc.getMapHeight()>50) {
+    		//eckleburg
+    		return new MapLocation(53,6);
+    	}else if(rc.getMapHeight()>30) {
+    		//maptestsmall
+    		return new MapLocation(26,26);
+    	}
+    	//intersection
+    	return new MapLocation(46,2);
+    }
+    
+    public void chooChoo(RobotController rc, MapLocation assignment) throws GameActionException{
+    	MapLocation me = rc.getLocation();
+		MapLocation[] gold=rc.senseNearbyLocationsWithGold(20);
+		MapLocation[] lead=rc.senseNearbyLocationsWithLead(20);
+		MapLocation ore=null;
+		if(gold.length!=0) {
+			ore=gold[0];
+		}else if(lead.length>20) {//special case for maptestsmall (and maybe other similar situations)
+			//there be a lot of lead, don't get distracted
+			for(int i=0;i<lead.length;++i) {
+				if(rc.senseLead(lead[i])>1) {
+					//extra case: make sure lead is in the general direction of the destination
+					Direction dirToAssignment=me.directionTo(assignment);
+					Direction dirToLead=me.directionTo(lead[i]);
+					if(dirToAssignment.getDeltaX()==dirToLead.getDeltaX()||dirToAssignment.getDeltaY()==dirToLead.getDeltaY()) {
+						ore=lead[i];
+						break;
+					}
+				}
+			}
+		}else if(lead.length!=0){
+			//rc.setIndicatorString("lead length: "+lead.length);
+			for(int i=0;i<lead.length;++i) {
+				if(rc.senseLead(lead[i])>1) {
+					ore=lead[i];
+					break;
+				}
+			}
+		}
+		//move towards the assigned location m
+		//unless it sees some ore, then move there instead
+		if(ore!=null) {
+			pathFind(rc,ore);
+		}else if(assignment!=null){
+			pathFind(rc,assignment);
+		}else {
+			randomMovement(rc);
+		}
+	}
+    public void randomMovement(RobotController rc) throws GameActionException{
+    	Direction dir = directions[rng.nextInt(directions.length)];
+        if (rc.canMove(dir)) {
+            rc.move(dir);
+        }
+    }
     public int locToComm(MapLocation loc) {
     	return 60*loc.x + loc.y;
     }
     
     public MapLocation commToLoc(int commVal) {
     	int y = commVal % 60;
-    	int x = commVal-y / 60;
+    	int x = (commVal-y) / 60;
     	return new MapLocation(x, y);
     }
 
