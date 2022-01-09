@@ -3,13 +3,14 @@ import battlecode.common.*;
 
 public class Miner extends RobotLogic {
 	private static Direction dir = directions[rng.nextInt(directions.length)];
-	private static MapLocation m=null;
+	private static MapLocation assignment=null;
 	@Override
 	public boolean run(RobotController rc) throws GameActionException{
 		// Try to mine on squares around us.
         mine(rc);
-
-        move(rc);
+        assignment=super.allAboard(rc);
+        chooChoo(rc,assignment);
+        //move(rc);
 		return true;
 	}
 	private void mine(RobotController rc) throws GameActionException{
@@ -28,6 +29,7 @@ public class Miner extends RobotLogic {
             }
         }
 	}
+	/*
 	private void move(RobotController rc) throws GameActionException{
 		MapLocation me = rc.getLocation();
 		//basic: move towards the assigned location m
@@ -48,7 +50,7 @@ public class Miner extends RobotLogic {
 	                	rc.setIndicatorString("mining :)");
 	                	//make sure miner isn't blocking archon
 	                	boolean nextToArchon=false;
-	                	RobotInfo[] archon=rc.senseNearbyRobots(2);
+	                	RobotInfo[] archon=rc.senseNearbyRobots(5);
 	                	for(int i=0;i<archon.length&&!nextToArchon;++i) {
 	                		if(archon[i].getType()==RobotType.ARCHON&&archon[i].getMode()==RobotMode.TURRET) {
 	                			nextToArchon=true;
@@ -121,4 +123,5 @@ public class Miner extends RobotLogic {
         	}
 		}
 	}
+	*/
 }
