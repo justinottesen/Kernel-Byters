@@ -125,9 +125,11 @@ public class Archon extends RobotLogic {
 					//iterate through the 3 symmetries
 					for(int k=0;k<3;k++) {
 						if(possibleSymmetries[k]) {
+							//System.out.println("symmetry "+k);
 							//calculate average distance to that archon's chosen destination
 							int distance=0;
 							MapLocation possibleDestination=calculateSymmetricalLocation(rc,friendlyArchonLocs[i],k);
+							//System.out.println("loc: "+possibleDestination);
 							for(int j=0;j<4;++j) {
 								if(friendlyArchonLocs[j]!=null) {
 									distance=possibleDestination.distanceSquaredTo(friendlyArchonLocs[j]);
@@ -142,6 +144,7 @@ public class Archon extends RobotLogic {
 									}
 								}
 							}
+							//System.out.println("distance: "+distance);
 							if(distance<lowest) {
 								lowest=distance;
 								chosenChooChoo=possibleDestination;
@@ -224,7 +227,8 @@ public class Archon extends RobotLogic {
 		if(array1.length!=array2.length)
 			return false;
 		for(int i=0;i<array1.length;++i) {
-			if(array1[i].x!=array2[i].x||array1[i].y!=array2[i].y)
+			//if both are null or both are the same
+			if((array1[i]==null&&array2[i]==null)||(array1[i].x!=array2[i].x||array1[i].y!=array2[i].y))
 				return false;
 		}
 		return true;
@@ -249,7 +253,7 @@ public class Archon extends RobotLogic {
 		}
 		updateBudgetLoc(rc);
 		commUnderAttack(rc);
-		
+		calculateChooChooDestination(rc);
 		pbBudget = rc.readSharedArray(4)/rc.getArchonCount();
 		//Andrew change: fixed a misspelling of soldier
 		if (enemySoldiersNearby(rc) == true) {
