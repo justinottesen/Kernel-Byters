@@ -71,7 +71,7 @@ public abstract class RobotLogic {
 		}
 		RobotInfo[] enemies = rc.senseNearbyRobots(assignment, 6, rc.getTeam().opponent());
 		for (int i = 0; i < enemies.length; i++) {
-			if (enemies[i].RobotType() == RobotType.ARCHON) {
+			if (enemies[i].getType() == RobotType.ARCHON) {
 				return;
 			}
 		}
