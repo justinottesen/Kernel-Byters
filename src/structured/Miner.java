@@ -13,11 +13,14 @@ public class Miner extends RobotLogic {
         	move(rc);
         }else {
 	        assignment=super.allAboard(rc);
-	        if(assignment!=null)
+	        if(assignment!=null) {
 	        	chooChoo(rc,assignment);
-	        else
+	        	commNoEnemyArchon(rc,assignment);
+	        }else
 	        	move(rc);
         }
+        //doesn't need to be in train mode to report enemy archons!
+    	commEnemyArchonLoc(rc);
 		return true;
 	}
 	private void mine(RobotController rc) throws GameActionException{
