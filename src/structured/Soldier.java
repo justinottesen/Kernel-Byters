@@ -1,8 +1,10 @@
 package structured;
 import battlecode.common.*;
 public class Soldier extends RobotLogic {
+	int turnNum = 0;
 	private static MapLocation assignment=null;
 	public boolean run(RobotController rc) throws GameActionException{
+		turnNum ++;
 		RobotInfo target=makeLikeTheFireNation(rc);
 		//attack anyone within range
 		if(target!=null) {
