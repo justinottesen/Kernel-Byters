@@ -245,11 +245,12 @@ public abstract class RobotLogic {
 		int comm=rc.readSharedArray(10);
 		if(comm!=0) {
 			MapLocation assignment=commToLoc(comm);
-			if(rc.onTheMap(assignment)) {
+			//commented out code until teh devs fix onTheMap
+			//if(rc.onTheMap(assignment)) {
 				return assignment;
-			}else {
-				return null;
-			}
+			//}else {
+			//	return null;
+			//}
 		}else {
 			return null;
 		}
@@ -258,31 +259,25 @@ public abstract class RobotLogic {
     public void chooChoo(RobotController rc, MapLocation assignment) throws GameActionException{
     	MapLocation me = rc.getLocation();
 		MapLocation[] gold=rc.senseNearbyLocationsWithGold(20);
-		MapLocation[] lead=rc.senseNearbyLocationsWithLead(20);
+		MapLocation[] lead=rc.senseNearbyLocationsWithLead(20,2);
 		MapLocation ore=null;
 		if(gold.length!=0) {
 			ore=gold[0];
 		}else if(lead.length>20) {//special case for maptestsmall (and maybe other similar situations)
 			//there be a lot of lead, don't get distracted
 			for(int i=0;i<lead.length;++i) {
-				if(rc.senseLead(lead[i])>1) {
-					//extra case: make sure lead is in the general direction of the destination
-					Direction dirToAssignment=me.directionTo(assignment);
-					Direction dirToLead=me.directionTo(lead[i]);
-					if(dirToAssignment.getDeltaX()==dirToLead.getDeltaX()||dirToAssignment.getDeltaY()==dirToLead.getDeltaY()) {
-						ore=lead[i];
-						break;
-					}
+				//extra case: make sure lead is in the general direction of the destination
+				Direction dirToAssignment=me.directionTo(assignment);
+				Direction dirToLead=me.directionTo(lead[i]);
+				if(dirToAssignment.getDeltaX()==dirToLead.getDeltaX()&&dirToAssignment.getDeltaY()==dirToLead.getDeltaY()) {
+					ore=lead[i];
+					rc.setIndicatorString(ore+" x: "+(dirToAssignment.getDeltaX()==dirToLead.getDeltaX())+", y: "+(dirToAssignment.getDeltaY()==dirToLead.getDeltaY()));
+					break;
 				}
 			}
 		}else if(lead.length!=0){
 			//rc.setIndicatorString("lead length: "+lead.length);
-			for(int i=0;i<lead.length;++i) {
-				if(rc.senseLead(lead[i])>1) {
-					ore=lead[i];
-					break;
-				}
-			}
+			ore=lead[0];
 		}
 		//move towards the assigned location m
 		//unless it sees some ore, then move there instead
