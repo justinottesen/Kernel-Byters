@@ -135,6 +135,12 @@ public class Archon extends RobotLogic {
 			if (pbBudget >= 50) {
 				createRobot(rc, RobotType.MINER);
 			}
+		} else {
+			if (turnNum % 2 == 1 && pbBudget >= 75) {
+				createRobot(rc, RobotType.SOLDIER);
+			} else {
+				createRobot(rc, RobotType.MINER);
+			}
 		}
 		//Add in code for later turns (Maybe alternate soldier + miner for train or something
 		rc.setIndicatorString("train destination"+calculateChooChooDestination(rc));
