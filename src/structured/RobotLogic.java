@@ -37,6 +37,33 @@ public abstract class RobotLogic {
         }
         return false;
 	}
+	
+	public void commEnemyArchonLoc(RobotController rc) throws GameActionException {
+		int enemyLocCommVal = 0;
+		RobotInfo[] enemyList = rc.senseNearbyRobots();
+		for (int i = 0; i < enemyList.length; i++) {
+			if (enemyList[i].getType() == RobotType.ARCHON) {
+				enemyLocCommVal = locToComm(enemyList[i].getLocation());
+				break;
+			}
+		}
+		boolean newArchon = true;
+		for (int j = 6; j < 10; j++) {
+			if (enemyLocCommVal == rc.readSharedArray[j]) {
+				newArchon = false;
+				break;
+			}
+		}
+		if (newArchon == true) {
+			for (int j = 6; j < 10; j++) {
+				if (rc.readSharedArray[j] == 0) {
+					rc.writeSharedArray(j, enemyLocCommVal);
+					break;
+				}
+			}
+		}
+	}
+	
 	/*
 	//for now, just put the dummy dumb pathfind
 	public void pathFind(RobotController rc, MapLocation loc) throws GameActionException{
