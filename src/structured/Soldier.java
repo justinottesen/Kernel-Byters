@@ -74,17 +74,27 @@ public class Soldier extends RobotLogic {
 	            if (rc.canAttack(toAttack)) {
 	                rc.attack(toAttack);
 	                //extra logic for figuring out whether it killed
-	                if(rc.canSenseRobotAtLocation(enemies[targetFire].getLocation())) {
+	                if(rc.canSenseRobotAtLocation(toAttack)) {
 	                	//didn't kill
 	                	waterTribe=enemies[targetFire];
 	                }else {
-	                	int commToAttack = locToComm(toAttack);
-	                	for (int i = 6; i < 10; i++) {
-	                		if (commToAttack == rc.readSharedArray(i)) {
-	                			rc.writeSharedArray(i, 0);
-	                			break;
-	                		}
+	                	//did kill archon
+	                	if(enemies[targetFire].getType()==RobotType.ARCHON) {
+	                		//update the archon list
+		                	for (int i = 6; i < 10; i++) {
+		                		int commToAttack=rc.readSharedArray(i);
+		                		if(commToAttack!=0) {
+		                			MapLocation archonLoc=commToLoc(commToAttack);
+		                			//within some error
+		                			if (toAttack.distanceSquaredTo(archonLoc)<10) {
+			                			rc.writeSharedArray(i, 0);
+			                			//System.out.println("took out archon at "+archonLoc);
+			                			break;
+			                		}
+		                		}
+		                	}
 	                	}
+	                	//retarget
 	                	return makeLikeTheFireNation(rc);
 	                }
 	            }
