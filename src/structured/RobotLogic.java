@@ -65,13 +65,17 @@ public abstract class RobotLogic {
 		}
 	}
 	
-	public void commNoEnemyArchon(RobotController rc, MapLocation, assignment) throws GameActionException {
-		int archonCommVal = locToComm(assignment);
-		for (int i = 6; i < 10; i++) {
-			if (rc.readSharedArray(i) == archonCommVal) {
-				rc.writeSharedArray(i, 0);
+	public void commNoEnemyArchon(RobotController rc, MapLocation assignment) throws GameActionException {
+		if (rc.getLocation().distanceSquaredTo(assignment) > 12) {
+			return;
+		}
+		RobotInfo[] enemies = rc.senseNearbyRobots(assignment, 6, rc.getTeam().opponent());
+		for (int i = 0; i < enemies.length; i++) {
+			if (enemies[i].RobotType() == RobotType.ARCHON) {
+				return;
 			}
 		}
+		rc.writeSharedArray(11, 1);
 	}
 	
 	//better pathfinding
