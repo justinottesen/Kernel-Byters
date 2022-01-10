@@ -4,6 +4,8 @@ public class Archon extends RobotLogic {
 	private int turnNum = 0;
 	private int pbBudget = 0;
 	private int locCommIndex = 0;
+	private int builtSoldiers = 0;
+	private int builtMiners = 0;
 	//0=rotation, 1=reflectionX, 2=reflectionY
 	private boolean[] possibleSymmetries= {true,true,true};
 	private int chosenSymmetry=-1;
@@ -58,25 +60,40 @@ public class Archon extends RobotLogic {
 	
 	private void createRobot(RobotController rc, RobotType type) throws GameActionException {
 		Direction dir = null;
+		boolean built = false;
 		if (type == RobotType.MINER || type == RobotType.SOLDIER) { // SOLDIER IS TEMPORARY CODE LATER ITS LIKE 1AM IM TIRED
 			dir = rc.getLocation().directionTo(rc.senseNearbyLocationsWithLead(34)[0]);
 		}
 		if (rc.canBuildRobot(type, dir) == true) {
 			rc.buildRobot(type, dir);
+			built = true;
 		} else if (rc.canBuildRobot(type, dir.rotateLeft()) == true) {
 			rc.buildRobot(type, dir.rotateLeft());
+			built = true;
 		} else if (rc.canBuildRobot(type, dir.rotateRight()) == true) {
 			rc.buildRobot(type, dir.rotateRight());
+			built = true;
 		} else if (rc.canBuildRobot(type, dir.rotateLeft().rotateLeft()) == true) {
 			rc.buildRobot(type, dir.rotateLeft().rotateLeft());
+			built = true;
 		} else if (rc.canBuildRobot(type, dir.rotateRight().rotateRight()) == true) {
 			rc.buildRobot(type, dir.rotateRight().rotateRight());
+			built = true;
 		} else if (rc.canBuildRobot(type, dir.rotateLeft().rotateLeft().rotateLeft()) == true) {
 			rc.buildRobot(type, dir.rotateLeft().rotateLeft().rotateLeft());
+			built = true;
 		} else if (rc.canBuildRobot(type, dir.rotateRight().rotateRight().rotateRight()) == true) {
 			rc.buildRobot(type, dir.rotateRight().rotateRight().rotateRight());
+			built = true;
 		} else if (rc.canBuildRobot(type, dir.rotateRight().rotateRight().rotateRight().rotateRight()) == true) {
 			rc.buildRobot(type, dir.rotateRight().rotateRight().rotateRight().rotateRight());
+			built = true;
+		}
+	if (built == true) {
+		if (type == RobotType.MINER) { //FIX LATER, DEADLINE COMING UP THIS SUCKS BUT IT WORKS
+			builtMiners += 1;
+		} else if (type == RobotType.SOLDIER) {
+			builtSoldiers += 1;
 		}
 	}
 	
@@ -263,6 +280,7 @@ public class Archon extends RobotLogic {
 		turnNum ++;
 		if (turnNum == 1) {
 			updateCommLoc(rc);
+			createRobot(rc, RobotType.MINER);
 		}
 		if(turnNum==2) {
 			buildFriendlyArchonArray(rc,friendlyArchonLocs);
@@ -275,13 +293,13 @@ public class Archon extends RobotLogic {
 		if (enemySoldiersNearby(rc) == true) {
 			createRobot(rc, RobotType.SOLDIER);
 		} else if (turnNum < super.TRANSITIONROUND) {//TRANSITIONROUND can be found and changed in RobotLogic (it's currently 50)
-			if (pbBudget >= 50) {
+			if (pbBudget >= 50+2*turnNum) {
 				createRobot(rc, RobotType.MINER);
 			}
-		} else {
-			if (turnNum % 2 == 1 && pbBudget >= 75) {
+		} else if (turnNum % 2 == 0) {
+			if (pbBudget >= 75) {
 				createRobot(rc, RobotType.SOLDIER);
-			} else {
+			} else if (builtSoldiers > 0.75*builtMiners) {
 				createRobot(rc, RobotType.MINER);
 			}
 		}
