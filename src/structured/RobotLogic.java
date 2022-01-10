@@ -13,6 +13,7 @@ public abstract class RobotLogic {
             Direction.NORTHWEST,
     };
 	public static final Random rng = new Random(6147);
+	public static final int TRANSITIONROUND=50;
 	abstract boolean run(RobotController rc) throws GameActionException;
 	
 	//returns true if it successfully moves, false if it doesn't
@@ -49,36 +50,20 @@ public abstract class RobotLogic {
 		}
 		boolean newArchon = true;
 		for (int j = 6; j < 10; j++) {
-			if (enemyLocCommVal == rc.readSharedArray[j]) {
+			if (enemyLocCommVal == rc.readSharedArray(j)) {
 				newArchon = false;
 				break;
 			}
 		}
 		if (newArchon == true) {
 			for (int j = 6; j < 10; j++) {
-				if (rc.readSharedArray[j] == 0) {
+				if (rc.readSharedArray(j) == 0) {
 					rc.writeSharedArray(j, enemyLocCommVal);
 					break;
 				}
 			}
 		}
 	}
-	
-	/*
-	//for now, just put the dummy dumb pathfind
-	public void pathFind(RobotController rc, MapLocation loc) throws GameActionException{
-		MapLocation me = rc.getLocation();
-		Direction dir=me.directionTo(loc);
-		if(rc.canMove(dir)) {
-    		rc.move(dir);
-    	}else if(rc.canMove(dir.rotateLeft())) { //if it can't move in the direction, tries to move 45 degrees to the left
-    		rc.move(dir.rotateLeft());
-    	}else if(rc.canMove(dir.rotateRight())) {//tries to move 45 degrees to the right
-    		rc.move(dir.rotateRight());
-    	}
-	}
-	*/
-	///*
 	//better pathfinding
 	public void pathFind(RobotController rc, MapLocation loc) throws GameActionException{
 		MapLocation me = rc.getLocation();
@@ -116,7 +101,6 @@ public abstract class RobotLogic {
 			}
 		}
 	}
-	//*/
 	//bytecode cost: around 3000
 	private TileData[] getHemisphereTiles(RobotController rc, MapLocation assignment) throws GameActionException{
 		MapLocation me=rc.getLocation();
@@ -256,7 +240,6 @@ public abstract class RobotLogic {
     	return index;
     }
     
-    /*
     public MapLocation allAboard(RobotController rc) throws GameActionException{
 		//we'll assume we put train destination in spot 10
 		int comm=rc.readSharedArray(10);
@@ -272,21 +255,6 @@ public abstract class RobotLogic {
 		}
 		
 	}
-    */
-    //temporary all aboard while no communications
-    //only works for player 1
-    public MapLocation allAboard(RobotController rc) throws GameActionException{
-    	if(rc.getMapHeight()>50) {
-    		//eckleburg
-    		return new MapLocation(53,6);
-    	}else if(rc.getMapHeight()>30) {
-    		//maptestsmall
-    		return new MapLocation(26,26);
-    	}
-    	//intersection
-    	return new MapLocation(46,2);
-    }
-    
     public void chooChoo(RobotController rc, MapLocation assignment) throws GameActionException{
     	MapLocation me = rc.getLocation();
 		MapLocation[] gold=rc.senseNearbyLocationsWithGold(20);
