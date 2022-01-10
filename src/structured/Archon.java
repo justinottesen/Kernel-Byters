@@ -89,11 +89,12 @@ public class Archon extends RobotLogic {
 			rc.buildRobot(type, dir.rotateRight().rotateRight().rotateRight().rotateRight());
 			built = true;
 		}
-	if (built == true) {
-		if (type == RobotType.MINER) { //FIX LATER, DEADLINE COMING UP THIS SUCKS BUT IT WORKS
-			builtMiners += 1;
-		} else if (type == RobotType.SOLDIER) {
-			builtSoldiers += 1;
+		if (built == true) {
+			if (type == RobotType.MINER) { //FIX LATER, DEADLINE COMING UP THIS SUCKS BUT IT WORKS
+				builtMiners += 1;
+			} else if (type == RobotType.SOLDIER) {
+				builtSoldiers += 1;
+			}
 		}
 	}
 	
