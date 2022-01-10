@@ -65,7 +65,16 @@ public class Soldier extends RobotLogic {
 	            MapLocation toAttack = enemies[targetFire].location;
 	            if (rc.canAttack(toAttack)) {
 	                rc.attack(toAttack);
-	                waterTribe=enemies[targetFire];
+	                //extra logic for figuring out whether it killed
+	                if(rc.canSenseRobotAtLocation(enemies[targetFire].getLocation())) {
+	                	//didn't kill
+	                	waterTribe=enemies[targetFire];
+	                }else {
+	                	//if it killed an archon, communicate it
+	                	
+	                	//retarget if necessary
+	                	return makeLikeTheFireNation(rc);
+	                }
 	            }
         	}
         }
@@ -93,6 +102,7 @@ public class Soldier extends RobotLogic {
 			//pursue archons no matter what
 			//go for the kill!
 			super.pathFind(rc,target.getLocation());
+			//also communicate its location
 		}
 	}
 	private void shmovement(RobotController rc) throws GameActionException{
