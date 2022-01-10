@@ -17,6 +17,10 @@ public class Soldier extends RobotLogic {
 				super.randomMovement(rc);
 			}
 		}
+		if(assignment!=null)
+			commNoEnemyArchon(rc,assignment);
+		//doesn't need to be in train mode to report enemy archons!
+    	commEnemyArchonLoc(rc);
         return true;
 	}
 	//returns true if it sees attacking units
@@ -74,7 +78,13 @@ public class Soldier extends RobotLogic {
 	                	//didn't kill
 	                	waterTribe=enemies[targetFire];
 	                }else {
-	                	commNoEnemyArchon(rc, toAttack);
+	                	int commToAttack = locToComm(toAttack);
+	                	for (int i = 6; i < 10; i++) {
+	                		if (commToAttack == rc.readSharedArray(i)) {
+	                			rc.writeSharedArray(i, 0);
+	                			break;
+	                		}
+	                	}
 	                	return makeLikeTheFireNation(rc);
 	                }
 	            }
