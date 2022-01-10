@@ -6,6 +6,7 @@ public class Archon extends RobotLogic {
 	private int locCommIndex = 0;
 	//0=rotation, 1=reflectionX, 2=reflectionY
 	private boolean[] possibleSymmetries= {true,true,true};
+	private int chosenSymmetry=-1;
 	//stores the locations of the 4 team archons (friendlyArchonsLocs[locCommIndex] == rc.getLocation())
 	MapLocation[] friendlyArchonLocs= {null,null,null,null};
 	MapLocation[] enemyArchonLocs= {null,null,null,null};
@@ -148,6 +149,7 @@ public class Archon extends RobotLogic {
 							if(distance<lowest) {
 								lowest=distance;
 								chosenChooChoo=possibleDestination;
+								chosenSymmetry=k;
 							}
 						}
 					}
@@ -198,6 +200,13 @@ public class Archon extends RobotLogic {
 				}
 			}
 			return true;
+		}else if(rc.readSharedArray(11)==1) {//hey broski, the archon ain't there
+			//a little extra boundary check
+			if(chosenSymmetry>=0&&chosenSymmetry<3) {
+				possibleSymmetries[chosenSymmetry]=false;
+				rc.writeSharedArray(11,0);
+				return true;
+			}
 		}
 		return false;
 	}
