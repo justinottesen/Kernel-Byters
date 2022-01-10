@@ -2,17 +2,18 @@ package structured;
 import battlecode.common.*;
 
 public class Miner extends RobotLogic {
-	int turnNum = 0;
 	private static Direction dir = directions[rng.nextInt(directions.length)];
 	private static MapLocation assignment=null;
 	@Override
 	public boolean run(RobotController rc) throws GameActionException{
-		turnNum ++;
 		// Try to mine on squares around us.
         mine(rc);
-        assignment=super.allAboard(rc);
-        chooChoo(rc,assignment);
-        //move(rc);
+        if(rc.getRoundNum()<super.TRANSITIONROUND) {
+        	//recode basic mining here
+        }else {
+	        assignment=super.allAboard(rc);
+	        chooChoo(rc,assignment);
+        }
 		return true;
 	}
 	private void mine(RobotController rc) throws GameActionException{
