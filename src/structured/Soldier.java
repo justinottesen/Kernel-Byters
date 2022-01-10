@@ -1,10 +1,8 @@
 package structured;
 import battlecode.common.*;
 public class Soldier extends RobotLogic {
-	int turnNum = 0;
 	private static MapLocation assignment=null;
 	public boolean run(RobotController rc) throws GameActionException{
-		turnNum ++;
 		RobotInfo target=makeLikeTheFireNation(rc);
 		//attack anyone within range
 		if(target!=null) {
@@ -13,7 +11,11 @@ public class Soldier extends RobotLogic {
 		}else {
 			//if it doesn't see a threat, move normally
 			assignment=super.allAboard(rc);
-			chooChoo(rc,assignment);
+			if(rc.getRoundNum()<super.TRANSITIONROUND&&assignment!=null) {
+				chooChoo(rc,assignment);
+			}else {
+				super.randomMovement(rc);
+			}
 		}
         return true;
 	}
@@ -110,25 +112,5 @@ public class Soldier extends RobotLogic {
 			super.pathFind(rc,target.getLocation());
 			//also communicate its location
 		}
-	}
-	private void shmovement(RobotController rc) throws GameActionException{
-		if(assignment!=null) {//if has assignment
-			//move towards assignment
-			//also effectively stays at assignment once there
-			rc.setIndicatorString("assigned location: "+assignment);
-			super.pathFind(rc,assignment);
-		}else {
-			//move randomly
-			rc.setIndicatorString("no assigned location, moving randomly");
-			Direction dir = directions[rng.nextInt(directions.length)];
-	        if (rc.canMove(dir)) {
-	            rc.move(dir);
-	        }
-		}
-			
-	}
-	//todo: set assignment
-	private void getAssignment(RobotController rc) {
-		//??
 	}
 }
