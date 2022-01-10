@@ -12,6 +12,7 @@ public class Archon extends RobotLogic {
 	//stores the locations of the 4 team archons (friendlyArchonsLocs[locCommIndex] == rc.getLocation())
 	MapLocation[] friendlyArchonLocs= {null,null,null,null};
 	MapLocation[] enemyArchonLocs= {null,null,null,null};
+	MapLocation[] killed= {null,null,null,null};
 	
 	private void updateCommLoc(RobotController rc) throws GameActionException{
 		while (rc.readSharedArray(locCommIndex) != 0) {
@@ -158,6 +159,12 @@ public class Archon extends RobotLogic {
 										distance+=69696969;
 										//hopefully that overrides
 									}else {//act normally
+										//make sure it isn't one of the already killed bases
+										for(int l=0;l<4;l++) {
+											if(killed[l]!=null&&possibleDestination.distanceSquaredTo(killed[l])<10) {
+												distance+=69696969;
+											}
+										}
 										//adds the distance
 										distance+=possibleDestination.distanceSquaredTo(friendlyArchonLocs[j]);
 									}
@@ -175,6 +182,7 @@ public class Archon extends RobotLogic {
 			}
 			if(chosenChooChoo!=null) {
 				rc.setIndicatorString("train destination: "+chosenChooChoo);
+				//System.out.println("train destination: "+chosenChooChoo);
 				rc.writeSharedArray(10,locToComm(chosenChooChoo));
 			}
 			return chosenChooChoo;
@@ -189,7 +197,7 @@ public class Archon extends RobotLogic {
 		//System.out.println("updating symmetry");
 		boolean updated=false;
 		//update enemy archon arrays from comms
-		MapLocation[] prevEnemyArchons=enemyArchonLocs;
+		MapLocation[] prevEnemyArchons=enemyArchonLocs.clone();
 		buildEnemyArchonArray(rc,enemyArchonLocs);
 		//only updateSymmetry if the updated array is different and if there's more than one symmetry possibility left
 		if(!equalsArray(prevEnemyArchons,enemyArchonLocs)) {
@@ -220,9 +228,9 @@ public class Archon extends RobotLogic {
 					}
 				}
 			}
+			rc.writeSharedArray(11,0);
 			updated=true;
-		}
-		if(rc.readSharedArray(11)==1) {//hey broski, the archon ain't there
+		}else if(rc.readSharedArray(11)==1) {//hey broski, the archon ain't there
 			//System.out.println("gotchu homie");
 			//a little extra boundary check
 			if(chosenSymmetry>=0&&chosenSymmetry<3) {
@@ -251,6 +259,8 @@ public class Archon extends RobotLogic {
 			int archonComm=rc.readSharedArray(i);
 			if(archonComm!=0) {
 				enemyArchons[i-6]=commToLoc(archonComm);
+			}else {
+				enemyArchons[i-6]=null;
 			}
 		}
 	}
@@ -259,11 +269,20 @@ public class Archon extends RobotLogic {
 		if(array1.length!=array2.length)
 			return false;
 		for(int i=0;i<array1.length;++i) {
+			//System.out.println("before: "+array1[i]+", after: "+array2[i]);
 			//if both are null or both are the same
 			if(array1[i]==null&&array2[i]==null)
 				continue;
-			if(((array1[i]==null)!=(array2[i]==null))||(array1[i].x!=array2[i].x||array1[i].y!=array2[i].y))
+			if(((array1[i]==null)!=(array2[i]==null))||(array1[i].x!=array2[i].x||array1[i].y!=array2[i].y)) {
+				if(array2[i]==null) {
+					//add to killed list
+					int index=0;
+					while(index<4&&killed[index]!=null)
+						index++;
+					killed[index]=array1[i];
+				}
 				return false;
+			}
 		}
 		return true;
 	}
