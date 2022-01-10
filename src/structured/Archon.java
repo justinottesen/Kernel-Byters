@@ -193,7 +193,7 @@ public class Archon extends RobotLogic {
 		buildEnemyArchonArray(rc,enemyArchonLocs);
 		//only updateSymmetry if the updated array is different and if there's more than one symmetry possibility left
 		if(!equalsArray(prevEnemyArchons,enemyArchonLocs)) {
-			System.out.println("detected array change");
+			//System.out.println("detected array change");
 			if(shouldReevaluateSymmetry()) {
 				//goes through each of the enemy archon slots
 				for (int j = 6; j < 10; j++) {
@@ -223,7 +223,7 @@ public class Archon extends RobotLogic {
 			updated=true;
 		}
 		if(rc.readSharedArray(11)==1) {//hey broski, the archon ain't there
-			System.out.println("gotchu homie");
+			//System.out.println("gotchu homie");
 			//a little extra boundary check
 			if(chosenSymmetry>=0&&chosenSymmetry<3) {
 				possibleSymmetries[chosenSymmetry]=false;
@@ -297,7 +297,7 @@ public class Archon extends RobotLogic {
 			if (pbBudget >= 50+2*turnNum) {
 				createRobot(rc, RobotType.MINER);
 			}
-		} else if (turnNum % 2 == 0) {
+		} else {
 			if (pbBudget >= 75) {
 				createRobot(rc, RobotType.SOLDIER);
 			} else if (builtSoldiers > 0.75*builtMiners) {
