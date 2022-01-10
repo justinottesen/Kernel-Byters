@@ -74,13 +74,7 @@ public class Soldier extends RobotLogic {
 	                	//didn't kill
 	                	waterTribe=enemies[targetFire];
 	                }else {
-	                	int commToAttack = locToComm(toAttack);
-	                	for (int i = 6; i < 10; i++) {
-	                		if (commToAttack == rc.readSharedArray(i)) {
-	                			rc.writeSharedArray(i, 0);
-	                			break;
-	                		}
-	                	}
+	                	commNoEnemyArchon(rc, toAttack);
 	                	return makeLikeTheFireNation(rc);
 	                }
 	            }
