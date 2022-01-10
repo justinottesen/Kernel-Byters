@@ -41,7 +41,7 @@ public abstract class RobotLogic {
 	
 	public void commEnemyArchonLoc(RobotController rc) throws GameActionException {
 		int enemyLocCommVal = 0;
-		RobotInfo[] enemyList = rc.senseNearbyRobots();
+		RobotInfo[] enemyList = rc.senseNearbyRobots(20, rc.getTeam().opponent());
 		for (int i = 0; i < enemyList.length; i++) {
 			if (enemyList[i].getType() == RobotType.ARCHON) {
 				enemyLocCommVal = locToComm(enemyList[i].getLocation());
@@ -76,6 +76,7 @@ public abstract class RobotLogic {
 			}
 		}
 		rc.writeSharedArray(11, 1);
+		System.out.println("no archon at location "+assignment);
 	}
 	
 	//better pathfinding
@@ -271,6 +272,7 @@ public abstract class RobotLogic {
 		
 	}
     public void chooChoo(RobotController rc, MapLocation assignment) throws GameActionException{
+		rc.setIndicatorString("train to "+assignment);
     	MapLocation me = rc.getLocation();
 		MapLocation[] gold=rc.senseNearbyLocationsWithGold(20);
 		MapLocation[] lead=rc.senseNearbyLocationsWithLead(20,2);
@@ -285,7 +287,6 @@ public abstract class RobotLogic {
 				Direction dirToLead=me.directionTo(lead[i]);
 				if(dirToAssignment.getDeltaX()==dirToLead.getDeltaX()&&dirToAssignment.getDeltaY()==dirToLead.getDeltaY()) {
 					ore=lead[i];
-					rc.setIndicatorString(ore+" x: "+(dirToAssignment.getDeltaX()==dirToLead.getDeltaX())+", y: "+(dirToAssignment.getDeltaY()==dirToLead.getDeltaY()));
 					break;
 				}
 			}
