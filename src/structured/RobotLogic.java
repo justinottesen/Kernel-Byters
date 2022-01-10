@@ -64,6 +64,16 @@ public abstract class RobotLogic {
 			}
 		}
 	}
+	
+	public void commNoEnemyArchon(RobotController rc, MapLocation, assignment) throws GameActionException {
+		int archonCommVal = locToComm(assignment);
+		for (int i = 6; i < 10; i++) {
+			if (rc.readSharedArray(i) == archonCommVal) {
+				rc.writeSharedArray(i, 0);
+			}
+		}
+	}
+	
 	//better pathfinding
 	public void pathFind(RobotController rc, MapLocation loc) throws GameActionException{
 		MapLocation me = rc.getLocation();
