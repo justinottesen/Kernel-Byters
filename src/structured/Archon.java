@@ -4,6 +4,11 @@ public class Archon extends RobotLogic {
 	private int turnNum = 0;
 	private int pbBudget = 0;
 	private int locCommIndex = 0;
+	//0=rotation, 1=reflectionX, 2=reflectionY
+	private boolean[] possibleSymmetries= {true,true,true};
+	//stores the locations of the 4 team archons (friendlyArchonsLocs[locCommIndex] == rc.getLocation())
+	MapLocation[] friendlyArchonLocs= {null,null,null,null};
+	MapLocation[] enemyArchonLocs= {null,null,null,null};
 	
 	private void updateCommLoc(RobotController rc) throws GameActionException{
 		while (rc.readSharedArray(locCommIndex) != 0) {
@@ -73,65 +78,183 @@ public class Archon extends RobotLogic {
 			rc.buildRobot(type, dir.rotateRight().rotateRight().rotateRight().rotateRight());
 		}
 	}
-	//Andrew change: added back calculating the train destination
-	//does some quick maffs to find a 180 degree rotation of the base (regardless of symmetry)
-	private MapLocation calculateChooChooDestination(RobotController rc,MapLocation archon) throws GameActionException{
+	
+	//returns the maplocation on the other half of the map
+	//symmetryType 0=rotation, 1=reflectionX, 2=reflectionY
+	private MapLocation calculateSymmetricalLocation(RobotController rc, MapLocation archon,int symmetryType) throws GameActionException{
+		if(symmetryType==0) {
+			return calculateRotation(rc,archon);
+		}else if(symmetryType==1) {
+			return calculateReflectionX(rc,archon);
+		}
+		return calculateReflectionY(rc,archon);
+	}
+	//does some quick maffs to find a 180 degree rotation of the base
+	private MapLocation calculateRotation(RobotController rc,MapLocation archon) throws GameActionException{
 		int height=rc.getMapHeight();
 		int width=rc.getMapWidth();
 		MapLocation middle=new MapLocation(width/2,height/2);
 		int dx=middle.x-archon.x;
 		int dy=middle.y-archon.y;
 		return new MapLocation(archon.x+2*dx,archon.y+2*dy);
-		
+	}
+	//does some quick maffs to find a reflection across X of the base
+	private MapLocation calculateReflectionX(RobotController rc,MapLocation archon) throws GameActionException{
+		int height=rc.getMapHeight();
+		int width=rc.getMapWidth();
+		MapLocation middle=new MapLocation(width/2,height/2);
+		int dx=middle.x-archon.x;
+		return new MapLocation(archon.x+2*dx,archon.y);
+	}
+	//does some quick maffs to find a reflection across Y of the base
+	private MapLocation calculateReflectionY(RobotController rc,MapLocation archon) throws GameActionException{
+		int height=rc.getMapHeight();
+		int width=rc.getMapWidth();
+		MapLocation middle=new MapLocation(width/2,height/2);
+		int dy=middle.y-archon.y;
+		return new MapLocation(archon.x,archon.y+2*dy);
 	}
 	//goes through all ally archons to decide on one train destination (the closest to all archons)
 	private MapLocation calculateChooChooDestination(RobotController rc) throws GameActionException{
-		MapLocation[] otherArchons= {null,null,null,null};
-		for(int i=0;i<4;++i) {
-			if(rc.readSharedArray(i)!=0) {
-				otherArchons[i]=commToLoc(rc.readSharedArray(i));
-			}
-		}
-		int index=-1;
-		int lowest=69696969;
-		MapLocation chosenChooChoo=null;
-		for(int i=0;i<4;++i) {
-			if(otherArchons[i]!=null) {
-				//calculate average distance to that archon's chosen destination
-				int distance=0;
-				MapLocation possibleDestination=calculateChooChooDestination(rc,otherArchons[i]);
-				//System.out.println("archon "+i+"'s location: "+otherArchons[i]);
-				//System.out.println("archon "+i+"'s chosen destination: "+possibleDestination);
-				//System.out.println("pov of archon "+orderValue);
-				for(int j=0;j<4;++j) {
-					if(otherArchons[j]!=null) {
-						//System.out.println("archon "+j+" loc: "+otherArchons[j]);
-						distance+=possibleDestination.distanceSquaredTo(otherArchons[j]);
+		//only recalculates when info is updated
+		if(updateSymmetryPossibilities(rc)) {
+			int lowest=69696969;
+			MapLocation chosenChooChoo=null;
+			for(int i=0;i<4;++i) {
+				if(friendlyArchonLocs[i]!=null) {
+					//iterate through the 3 symmetries
+					for(int k=0;k<3;k++) {
+						if(possibleSymmetries[k]) {
+							//calculate average distance to that archon's chosen destination
+							int distance=0;
+							MapLocation possibleDestination=calculateSymmetricalLocation(rc,friendlyArchonLocs[i],k);
+							for(int j=0;j<4;++j) {
+								if(friendlyArchonLocs[j]!=null) {
+									distance=possibleDestination.distanceSquaredTo(friendlyArchonLocs[j]);
+									//special case: overrides if the possible destination is within vision range of the archon
+									if(distance<35) {
+										//possibleDestination within vision range of a friendly archon (bad)
+										distance+=69696969;
+										//hopefully that overrides
+									}else {//act normally
+										//adds the distance
+										distance+=possibleDestination.distanceSquaredTo(friendlyArchonLocs[j]);
+									}
+								}
+							}
+							if(distance<lowest) {
+								lowest=distance;
+								chosenChooChoo=possibleDestination;
+							}
+						}
 					}
 				}
-				//System.out.println("distance: "+distance);
-				if(distance<lowest) {
-					index=i;
-					lowest=distance;
-					chosenChooChoo=possibleDestination;
+			}
+			if(chosenChooChoo!=null) {
+				rc.setIndicatorString("train destination: "+chosenChooChoo);
+				rc.writeSharedArray(10,locToComm(chosenChooChoo));
+			}
+			return chosenChooChoo;
+		}
+		return null;
+	}
+	
+	//updates the possibleSymmetries array to reflect the enemy archon locations
+	//ideally, it should narrow it down to only 1 of the possible symmetries
+	//returns true if it actually updates something
+	private boolean updateSymmetryPossibilities(RobotController rc) throws GameActionException{
+		//update enemy archon arrays from comms
+		MapLocation[] prevEnemyArchons=enemyArchonLocs;
+		buildEnemyArchonArray(rc,enemyArchonLocs);
+		//only updateSymmetry if the updated array is different and if there's more than one symmetry possibility left
+		if(!equalsArray(prevEnemyArchons,enemyArchonLocs)) {
+			if(shouldReevaluateSymmetry()) {
+				//goes through each of the enemy archon slots
+				for (int j = 6; j < 10; j++) {
+					int enemyArchonComm=rc.readSharedArray(j);
+					if (enemyArchonComm!=0) {
+						//if comm slot isn't empty...
+						MapLocation enemyArchonLoc=commToLoc(enemyArchonComm);
+						for(int i=0;i<3;++i) {
+							if(possibleSymmetries[i]) {
+								boolean symmetryWorks=false;
+								//check that one of the symmetries matches with enemyArchonLoc
+								for(int k=0;k<4&&!symmetryWorks;++k) {
+									if(friendlyArchonLocs[k]!=null) {
+										MapLocation projectedEnemyArchonLoc=calculateSymmetricalLocation(rc,friendlyArchonLocs[k],i);
+										//if the projection matches reality (with a little leeway)
+										if(projectedEnemyArchonLoc.isWithinDistanceSquared(enemyArchonLoc,3)) {
+											symmetryWorks=true;
+										}
+									}
+								}
+								possibleSymmetries[i]=symmetryWorks;
+							}
+						}
+					}
 				}
 			}
+			return true;
 		}
-		return chosenChooChoo;
+		return false;
+	}
+	//assuming archons is an array of 4 nulls
+	//fills the array with the 4 locations of the friendly archons (leaves them null if they don't exist in comms)
+	private void buildFriendlyArchonArray(RobotController rc, MapLocation[] archons) throws GameActionException{
+		for(int i=0;i<4;++i) {
+			int archonComm=rc.readSharedArray(i);
+			if(archonComm!=0) {
+				archons[i]=commToLoc(archonComm);
+			}
+		}
+	}
+	//assuming archons is an array of 4 nulls
+	//fills the array with the 4 locations of the enemy archons (leaves them null if they don't exist in comms)
+	private void buildEnemyArchonArray(RobotController rc, MapLocation[] enemyArchons) throws GameActionException{
+		//the only difference from building the friendly array is the index
+		for(int i=6;i<10;++i) {
+			int archonComm=rc.readSharedArray(i);
+			if(archonComm!=0) {
+				enemyArchons[i]=commToLoc(archonComm);
+			}
+		}
+	}
+	//returns true if the contents of the two arrays are the same, false if they're not
+	private boolean equalsArray(MapLocation[] array1,MapLocation[] array2) {
+		if(array1.length!=array2.length)
+			return false;
+		for(int i=0;i<array1.length;++i) {
+			if(array1[i].x!=array2[i].x||array1[i].y!=array2[i].y)
+				return false;
+		}
+		return true;
+	}
+	private boolean shouldReevaluateSymmetry() {
+		int numRemaining=0;
+		for(int i=0;i<3;++i) {
+			if(possibleSymmetries[i]) {
+				numRemaining++;
+			}
+		}
+		//numRemaining == 0 is bad
+		return (numRemaining>1);
 	}
 	public boolean run(RobotController rc) throws GameActionException{
 		turnNum ++;
 		if (turnNum == 1) {
 			updateCommLoc(rc);
 		}
+		if(turnNum==2) {
+			buildFriendlyArchonArray(rc,friendlyArchonLocs);
+		}
 		updateBudgetLoc(rc);
 		commUnderAttack(rc);
 		
 		pbBudget = rc.readSharedArray(4)/rc.getArchonCount();
 		//Andrew change: fixed a misspelling of soldier
-		if (enemySoldiersNearby(rc) == true) { //PLACEHOLDER IM TIRED ILL DO IT TOMORROW
+		if (enemySoldiersNearby(rc) == true) {
 			createRobot(rc, RobotType.SOLDIER);
-		} else if (turnNum < 50) {
+		} else if (turnNum < super.TRANSITIONROUND) {//TRANSITIONROUND can be found and changed in RobotLogic (it's currently 50)
 			if (pbBudget >= 50) {
 				createRobot(rc, RobotType.MINER);
 			}
@@ -142,8 +265,6 @@ public class Archon extends RobotLogic {
 				createRobot(rc, RobotType.MINER);
 			}
 		}
-		//Add in code for later turns (Maybe alternate soldier + miner for train or something
-		rc.setIndicatorString("train destination"+calculateChooChooDestination(rc));
     	return true;
 	}
 }
