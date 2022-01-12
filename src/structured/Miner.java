@@ -42,7 +42,7 @@ public class Miner extends RobotLogic {
         }
 	}
 	///*
-	//now used only for the first stage of the game
+	//now used for exploration mining
 	private void move(RobotController rc) throws GameActionException{
 		//set destination to a random spot on the map
 		if(assignment==null||rc.getLocation().distanceSquaredTo(assignment)<5) {
@@ -51,7 +51,9 @@ public class Miner extends RobotLogic {
 			assignment=new MapLocation(random.nextInt(rc.getMapWidth()),random.nextInt(rc.getMapHeight()));
 		}
 		rc.setIndicatorString("random loc: "+assignment);
-		chooChoo(rc,assignment);
+		
+		//todo: choo choo but ignore lead deposits with adjacent miners
+		chooChooIgnore(rc,assignment);
 	}
 	//*/
 }
