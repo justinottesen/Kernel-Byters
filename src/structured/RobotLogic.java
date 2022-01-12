@@ -13,7 +13,7 @@ public abstract class RobotLogic {
             Direction.NORTHWEST,
     };
 	public static final Random rng = new Random(6147);
-	public static final int TRANSITIONROUND=50;
+	public static final int TRANSITIONROUND=500;
 	abstract boolean run(RobotController rc) throws GameActionException;
 	
 	//returns true if it successfully moves, false if it doesn't
@@ -77,6 +77,45 @@ public abstract class RobotLogic {
 		}
 		rc.writeSharedArray(11, 1);
 		System.out.println("no archon at location "+assignment);
+	}
+	//greedy pathfinding, ideal for soldier combat
+	public void greedy(RobotController rc, MapLocation loc) throws GameActionException{
+		MapLocation me = rc.getLocation();
+		Direction dir=me.directionTo(loc);
+		//get the rubble of the 3 possible movement directions + current location
+		int[] rubble= new int[4];
+		rubble[0]=rc.senseRubble(me.add(dir));
+		rubble[1]=rc.senseRubble(me.add(dir.rotateLeft()));
+		rubble[2]=rc.senseRubble(me.add(dir.rotateRight()));
+		rubble[3]=rc.senseRubble(me);
+		Direction[] dirs= {dir,dir.rotateLeft(),dir.rotateRight(),Direction.CENTER};
+
+		//just use bubble sort cuz its easy and the list is small
+		boolean noSwitch=false;
+		while(!noSwitch) {
+			noSwitch=true;
+			for(int i=0;i<3;++i) {
+				//bubble sort: swap if order is incorrect
+				if(rubble[i]>rubble[i+1]) {
+					//swaps both rubble and locs
+					noSwitch=false;
+					int temp=rubble[i];
+					rubble[i]=rubble[i+1];
+					rubble[i+1]=temp;
+					Direction dirTemp=dirs[i];
+					dirs[i]=dirs[i+1];
+					dirs[i+1]=dirTemp;
+				}
+			}
+		}
+		for(int i=0;i<4;++i) {
+			if(dirs[i]==Direction.CENTER)
+				return;
+			if(rc.canMove(dirs[i])) {
+				rc.move(dirs[i]);
+				return;
+			}
+		}
 	}
 	
 	//better pathfinding
@@ -293,6 +332,52 @@ public abstract class RobotLogic {
 		}else if(lead.length!=0){
 			//rc.setIndicatorString("lead length: "+lead.length);
 			ore=lead[0];
+		}
+		//move towards the assigned location m
+		//unless it sees some ore, then move there instead
+		if(ore!=null) {
+			pathFind(rc,ore);
+		}else if(assignment!=null){
+			pathFind(rc,assignment);
+		}else {
+			randomMovement(rc);
+		}
+	}
+    public void chooChooIgnore(RobotController rc, MapLocation assignment) throws GameActionException{
+		rc.setIndicatorString("train to "+assignment);
+    	MapLocation me = rc.getLocation();
+		MapLocation[] gold=rc.senseNearbyLocationsWithGold(20);
+		MapLocation[] lead=rc.senseNearbyLocationsWithLead(20,2);
+		MapLocation ore=null;
+		if(gold.length!=0) {
+			ore=gold[0];
+		}else if(lead.length>20) {//special case for maptestsmall (and maybe other similar situations)
+			//there be a lot of lead, don't get distracted
+			for(int i=0;i<lead.length;++i) {
+				//extra case: make sure lead is in the general direction of the destination
+				Direction dirToAssignment=me.directionTo(assignment);
+				Direction dirToLead=me.directionTo(lead[i]);
+				if(dirToAssignment.getDeltaX()==dirToLead.getDeltaX()&&dirToAssignment.getDeltaY()==dirToLead.getDeltaY()) {
+					ore=lead[i];
+					break;
+				}
+			}
+		}else if(lead.length!=0){
+			//rc.setIndicatorString("lead length: "+lead.length);
+			//I know this seems like a lot of loops, but it really isn't that bad
+			//lead[] is guaranteed to be smaller than 20 and adjacentToLead is guaranteed to be less than 10
+			for(int i=0;i<lead.length;++i) {
+				//ignore the lead if its adjacent to a miner
+				RobotInfo[] adjacentToLead=rc.senseNearbyRobots(lead[i],2,rc.getTeam());
+				boolean containsMiner=false;
+				for(int j=0;j<adjacentToLead.length&&!containsMiner;++j) {
+					containsMiner=(adjacentToLead[j].getType()==RobotType.MINER);
+				}
+				if(!containsMiner) {
+					ore=lead[i];
+					break;
+				}
+			}
 		}
 		//move towards the assigned location m
 		//unless it sees some ore, then move there instead
