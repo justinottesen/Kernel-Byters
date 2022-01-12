@@ -309,7 +309,6 @@ public class Archon extends RobotLogic {
 		commUnderAttack(rc);
 		calculateChooChooDestination(rc);
 		pbBudget = rc.readSharedArray(4)/rc.getArchonCount();
-		//Andrew change: fixed a misspelling of soldier
 		if (enemySoldiersNearby(rc) == true) {
 			createRobot(rc, RobotType.SOLDIER);
 		} else if (turnNum < super.TRANSITIONROUND) {//TRANSITIONROUND can be found and changed in RobotLogic (it's currently 50)
