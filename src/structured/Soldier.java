@@ -12,7 +12,7 @@ public class Soldier extends RobotLogic {
 			//if it doesn't see a threat, move normally
 			assignment=super.allAboard(rc);
 			if(rc.getRoundNum()>=super.TRANSITIONROUND&&assignment!=null) {
-				chooChoo(rc,assignment);
+				super.pathFind(rc,assignment);
 			}else {
 				super.randomMovement(rc);
 			}
@@ -103,6 +103,7 @@ public class Soldier extends RobotLogic {
         return waterTribe;
 	}
 	//flaw: only micros for stuff it can shoot at (ignores the rest of its vision radius)
+	//another flaw: doesn't explicitly support fellow soldiers
 	private void microThatBitch(RobotController rc,RobotInfo target) throws GameActionException{
 		//only micro if it sees attacking threats
 		RobotType type=target.getType();
@@ -115,16 +116,16 @@ public class Soldier extends RobotLogic {
 				int dx=targetLoc.x-me.x;
 				int dy=targetLoc.y-me.y;
 				MapLocation retreatLoc=new MapLocation(me.x-2*dx,me.y-2*dy);
-				super.pathFind(rc,retreatLoc);
+				//note, doesn't use regular pathfinding, prioritizes short term greed
+				super.greedy(rc,retreatLoc);
 			}else if(target.getHealth()<target.getType().getMaxHealth(target.getLevel())/3) {//pursue if enemy is weak (1/3 health or less)
 				//pursue, which means moving in the direction of the enemy
-				super.pathFind(rc,target.getLocation());
+				super.greedy(rc,target.getLocation());
 			}
 		}else if(type==RobotType.ARCHON) {
 			//pursue archons no matter what
 			//go for the kill!
-			super.pathFind(rc,target.getLocation());
-			//also communicate its location
+			super.greedy(rc,target.getLocation());
 		}
 	}
 }
