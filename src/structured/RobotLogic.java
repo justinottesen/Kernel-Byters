@@ -13,9 +13,42 @@ public abstract class RobotLogic {
             Direction.NORTHWEST,
     };
 	public static final Random rng = new Random(6147);
-	public static final int TRANSITIONROUND=500;
+	public static final int TRANSITIONROUND = 50;
 	abstract boolean run(RobotController rc) throws GameActionException;
+
+	public MapLocation getMapCenter(RobotController rc) throws GameActionException {
+		return new MapLocation(rc.getMapWidth()/2, rc.getMapHeight()/2);
+	}
 	
+	public Direction directionToCenter(RobotController rc) throws GameActionException {
+		return rc.getLocation().directionTo(getMapCenter(rc));
+	}
+
+	public Direction rotateClockwise(Direction dir, int numTimes) {
+		for (int i = 0; i < numTimes; i++) {
+			dir = dir.rotateRight();
+		}
+		return dir;
+	}
+
+	public Direction closestAvailableDir(RobotController rc, Direction goalDir) throws GameActionException {
+		if (rc.canSenseRobotAtLocation(rc.adjacentLocation(goalDir)) == false) {
+			return goalDir;
+		}
+		for (int i = 1; i < 5; i++) {
+			for (int j = 0; j < 2; j++) {
+				if (j == 1) {
+					i = 8 - i;
+				}
+				if (rc.canSenseRobotAtLocation(rc.adjacentLocation(rotateClockwise(goalDir, i))) == false) {
+					return rotateClockwise(goalDir, i);
+				}
+			}
+		}
+		return null;
+	}
+	
+
 	//returns true if it successfully moves, false if it doesn't
 	public boolean follow(RobotController rc, int id) throws GameActionException{
 		RobotInfo follow=null;
@@ -76,7 +109,6 @@ public abstract class RobotLogic {
 			}
 		}
 		rc.writeSharedArray(11, 1);
-		System.out.println("no archon at location "+assignment);
 	}
 	//greedy pathfinding, ideal for soldier combat
 	public void greedy(RobotController rc, MapLocation loc) throws GameActionException{
@@ -222,7 +254,6 @@ public abstract class RobotLogic {
     		if(hemisphere[i]!=null) {
     			total+=hemisphere[i].getPassibility();
     		}else {
-    			//System.out.println("null index: "+i);
     			break;
     		}
     	}
@@ -289,7 +320,6 @@ public abstract class RobotLogic {
     	}
     	//rc.setIndicatorString("straight: "+passabilityScores[0]+", left: "+passabilityScores[1]+", right: "+passabilityScores[2]+", chosen: "+index);
     	//if(index!=1) {
-    	//	System.out.println("straight not chosen!");
     	//}
     	return index;
     }
