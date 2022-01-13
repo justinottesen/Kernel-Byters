@@ -1,20 +1,30 @@
 package structured;
 import battlecode.common.*;
 public class Soldier extends RobotLogic {
+	private static int farFromHome=0;
 	private static MapLocation assignment=null;
 	public boolean run(RobotController rc) throws GameActionException{
 		RobotInfo target=makeLikeTheFireNation(rc);
-		//attack anyone within range
-		if(target!=null) {
-			//if it sees threat, micro
-			microThatBitch(rc,target);
-		}else {
-			//if it doesn't see a threat, move normally
-			assignment=super.allAboard(rc);
-			if(rc.getRoundNum()>=super.TRANSITIONROUND&&assignment!=null) {
+		distanceToNearestArchon(rc);
+		
+		//doesn't move if getting healed (for now)
+		if(!gettingHealed(rc)) {
+			//attack anyone within range
+			if(target!=null) {
+				//if it sees threat, micro
+				microThatBitch(rc,target);
+			}else if(retreat(rc)){
+				//retreating
+				assignment=getNearestArchon(rc);
 				super.pathFind(rc,assignment);
 			}else {
-				super.randomMovement(rc);
+				//if it doesn't see a threat, move normally
+				assignment=super.allAboard(rc);
+				if(rc.getRoundNum()>=super.TRANSITIONROUND&&assignment!=null) {
+					super.pathFind(rc,assignment);
+				}else {
+					super.randomMovement(rc);
+				}
 			}
 		}
 		if(assignment!=null)
@@ -127,5 +137,46 @@ public class Soldier extends RobotLogic {
 			//go for the kill!
 			super.greedy(rc,target.getLocation());
 		}
+	}
+	
+	//sets farFromHome to the distance squared to the nearest archon
+	//note: doesn't really work when an archon has been killed
+	private void distanceToNearestArchon(RobotController rc) throws GameActionException{
+		MapLocation me = rc.getLocation();
+		farFromHome=696969;
+		int index=-1;
+		for(int i=0;i<rc.getArchonCount();++i) {
+			MapLocation archon=commToLoc(rc.readSharedArray(i));
+			int distance=me.distanceSquaredTo(archon);
+			if(distance<farFromHome) {
+				farFromHome=distance;
+				index=i;
+			}
+		}
+	}
+	
+	//returns the maplocation of the nearest archon
+	//note: doesn't really work when an archon has been killed
+	private MapLocation getNearestArchon(RobotController rc) throws GameActionException{
+		MapLocation me = rc.getLocation();
+		for(int i=0;i<rc.getArchonCount();++i) {
+			MapLocation archon=commToLoc(rc.readSharedArray(i));
+			int distance=me.distanceSquaredTo(archon);
+			if(distance==farFromHome) {
+				return archon;
+			}
+		}
+		return null;
+	}
+	
+	
+	//for now, return true if hp < 1/3 max health
+	private boolean retreat(RobotController rc) throws GameActionException{
+		return (rc.getHealth()<rc.getType().getMaxHealth(0)/3);
+	}
+	
+	//for now, return true if within healing range of archon and hp < max health
+	private boolean gettingHealed(RobotController rc) throws GameActionException{
+		return(farFromHome<21&&rc.getHealth()<rc.getType().getMaxHealth(0));
 	}
 }
