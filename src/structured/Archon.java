@@ -26,72 +26,60 @@ public class Archon extends RobotLogic {
 		if (locCommIndex == 0) {
 			//Andrew change: what if our lead amount is more than the max flag?
 			int leadAmount=rc.getTeamLeadAmount(rc.getTeam());
-			if(leadAmount<=65535)
+			if(leadAmount<=65535) {
 				rc.writeSharedArray(4, rc.getTeamLeadAmount(rc.getTeam()));
-			else
+
+			}
+			else {
 				rc.writeSharedArray(4,65535);
+
+			}
 		}
 	}
 	
 	private void commUnderAttack(RobotController rc) throws GameActionException {
 		int prevValue = rc.readSharedArray(5);
 		if ((prevValue/Math.pow(10, locCommIndex))%2 == 0) { //NOT UNDER ATTACK LAST TURN
-			if (enemySoldiersNearby(rc) == true) {
+			if (enemyNearby(rc) == true) {
 				rc.writeSharedArray(5, prevValue + (int)Math.pow(10, locCommIndex));
 			}
 		}
 		if ((prevValue/Math.pow(10, locCommIndex))%2 == 1) { //UNDER ATTACK LAST TURN
-			if (enemySoldiersNearby(rc) == false) {
+			if (enemyNearby(rc) == false) {
 				rc.writeSharedArray(5, prevValue - (int)Math.pow(10, locCommIndex));
 			}
 		}
 	}
 	
-	private boolean enemySoldiersNearby(RobotController rc) throws GameActionException {
+	private boolean enemyNearby(RobotController rc) throws GameActionException {
 		Team opponent = rc.getTeam().opponent();
-        RobotInfo[] enemies = rc.senseNearbyRobots(34, opponent);
+        RobotInfo[] enemies = rc.senseNearbyRobots();
         for(int i=0;i<enemies.length;++i) {
-        	RobotType type=enemies[i].getType();
-    		if(type==RobotType.SOLDIER||type==RobotType.SAGE||type==RobotType.WATCHTOWER) {
-    			return true;
-    		}
+        	if (enemies[i].getTeam() == rc.getTeam().opponent()) {
+        		return true;
+        	}
         }
         return false;
 	}
 	
 	private void createRobot(RobotController rc, RobotType type) throws GameActionException {
-		Direction dir = null;
+		Direction goalDir = directionToCenter(rc);
 		boolean built = false;
-		if (type == RobotType.MINER || type == RobotType.SOLDIER) { // SOLDIER IS TEMPORARY CODE LATER ITS LIKE 1AM IM TIRED
-			dir = rc.getLocation().directionTo(rc.senseNearbyLocationsWithLead(34)[0]);
+		if (type == RobotType.MINER) {
+			if (rc.senseNearbyLocationsWithLead().length > 0) {
+				goalDir = rc.getLocation().directionTo(rc.senseNearbyLocationsWithLead()[0]);
+			}
+		} else if (type == RobotType.SOLDIER) {
+			if (rc.senseNearbyRobots(34, rc.getTeam().opponent()).length > 0) {
+				goalDir = rc.getLocation().directionTo(rc.senseNearbyRobots(34, rc.getTeam().opponent())[0].location);
+			}
 		}
-		if (rc.canBuildRobot(type, dir) == true) {
-			rc.buildRobot(type, dir);
-			built = true;
-		} else if (rc.canBuildRobot(type, dir.rotateLeft()) == true) {
-			rc.buildRobot(type, dir.rotateLeft());
-			built = true;
-		} else if (rc.canBuildRobot(type, dir.rotateRight()) == true) {
-			rc.buildRobot(type, dir.rotateRight());
-			built = true;
-		} else if (rc.canBuildRobot(type, dir.rotateLeft().rotateLeft()) == true) {
-			rc.buildRobot(type, dir.rotateLeft().rotateLeft());
-			built = true;
-		} else if (rc.canBuildRobot(type, dir.rotateRight().rotateRight()) == true) {
-			rc.buildRobot(type, dir.rotateRight().rotateRight());
-			built = true;
-		} else if (rc.canBuildRobot(type, dir.rotateLeft().rotateLeft().rotateLeft()) == true) {
-			rc.buildRobot(type, dir.rotateLeft().rotateLeft().rotateLeft());
-			built = true;
-		} else if (rc.canBuildRobot(type, dir.rotateRight().rotateRight().rotateRight()) == true) {
-			rc.buildRobot(type, dir.rotateRight().rotateRight().rotateRight());
-			built = true;
-		} else if (rc.canBuildRobot(type, dir.rotateRight().rotateRight().rotateRight().rotateRight()) == true) {
-			rc.buildRobot(type, dir.rotateRight().rotateRight().rotateRight().rotateRight());
-			built = true;
+		Direction realDir = closestAvailableDir(rc, goalDir);
+		if (rc.canBuildRobot(type, realDir)) {
+			rc.buildRobot(type, realDir);
 		}
 		if (built == true) {
-			if (type == RobotType.MINER) { //FIX LATER, DEADLINE COMING UP THIS SUCKS BUT IT WORKS
+			if (type == RobotType.MINER) {
 				builtMiners += 1;
 			} else if (type == RobotType.SOLDIER) {
 				builtSoldiers += 1;
@@ -298,20 +286,21 @@ public class Archon extends RobotLogic {
 	}
 	public boolean run(RobotController rc) throws GameActionException{
 		turnNum ++;
+		if (enemyNearby(rc) == true) {
+			createRobot(rc, RobotType.SOLDIER);
+		}
+
 		if (turnNum == 1) {
 			updateCommLoc(rc);
 			createRobot(rc, RobotType.MINER);
-		}
-		if(turnNum==2) {
+		} else if(turnNum==2) {
 			buildFriendlyArchonArray(rc,friendlyArchonLocs);
 		}
 		updateBudgetLoc(rc);
 		commUnderAttack(rc);
 		calculateChooChooDestination(rc);
 		pbBudget = rc.readSharedArray(4)/rc.getArchonCount();
-		if (enemySoldiersNearby(rc) == true) {
-			createRobot(rc, RobotType.SOLDIER);
-		} else if (turnNum < super.TRANSITIONROUND) {//TRANSITIONROUND can be found and changed in RobotLogic (it's currently 50)
+		if (turnNum < super.TRANSITIONROUND) {//TRANSITIONROUND can be found and changed in RobotLogic (it's currently 50)
 			if (pbBudget >= 50+2*turnNum) {
 				createRobot(rc, RobotType.MINER);
 			}
