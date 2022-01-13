@@ -4,6 +4,7 @@ import java.util.Random;
 public class Miner extends RobotLogic {
 	private static Direction dir = directions[rng.nextInt(directions.length)];
 	private static MapLocation assignment=null;
+	private int commNum=-1;
 	@Override
 	public boolean run(RobotController rc) throws GameActionException{
 		// Try to mine on squares around us.
@@ -11,6 +12,7 @@ public class Miner extends RobotLogic {
         if(rc.getRoundNum()<super.TRANSITIONROUND) {
         	//recode basic mining here
         	move(rc);
+        	communicateRubble(rc);
         }else {
 	        assignment=super.allAboard(rc);
 	        if(assignment!=null) {
@@ -41,7 +43,6 @@ public class Miner extends RobotLogic {
         	}
         }
 	}
-	///*
 	//now used for exploration mining
 	private void move(RobotController rc) throws GameActionException{
 		//set destination to a random spot on the map
@@ -52,8 +53,28 @@ public class Miner extends RobotLogic {
 		}
 		rc.setIndicatorString("random loc: "+assignment);
 		
-		//todo: choo choo but ignore lead deposits with adjacent miners
+		//choo choo but ignore lead deposits with adjacent miners
 		chooChooIgnore(rc,assignment);
 	}
-	//*/
+	//if theres room in the comms, communicates
+	private void communicateRubble(RobotController rc) throws GameActionException{
+		if(commNum>=0) {
+			MapLocation me=rc.getLocation();
+			//communicate the current rubble
+			int locNum=locToComm(me);
+			int rubbleNum=rc.senseRubble(me)/7;
+			int commRubble=locNum+((int)Math.pow(2,12))*rubbleNum;
+			rc.setIndicatorString("comm: "+commRubble+", commNum: "+commNum);
+			rc.writeSharedArray(commNum,commRubble);
+		}else {
+			//if there's an available spot in comms, claim it
+			for(int i=63;i>53;--i) {
+				if(rc.readSharedArray(i)==0) {
+					commNum=i;
+					communicateRubble(rc);
+					break;
+				}
+			}
+		}
+	}
 }
