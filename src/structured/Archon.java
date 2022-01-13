@@ -3,8 +3,6 @@ import battlecode.common.*;
 public class Archon extends RobotLogic {
 	private int pbBudget = 0;
 	private int locCommIndex = 0;
-	private int builtSoldiers = 0;
-	private int builtMiners = 0;
 	//0=rotation, 1=reflectionX, 2=reflectionY
 	private boolean[] possibleSymmetries= {true,true,true};
 	private int chosenSymmetry=-1;
@@ -41,28 +39,38 @@ public class Archon extends RobotLogic {
 		}
 	}
 	
-	private void updateCommLoc(RobotController rc) throws GameActionException{
+	private void updateLocComm(RobotController rc) throws GameActionException{
 		while (rc.readSharedArray(locCommIndex) != 0) {
 			locCommIndex++;
 		}
 		rc.writeSharedArray(locCommIndex,locToComm(rc.getLocation()));
 	}
 	
-	private void updateBudgetLoc(RobotController rc) throws GameActionException {
+	private void updateBudgetComm(RobotController rc) throws GameActionException {
 		if (locCommIndex == 0) {
 			int leadAmount=rc.getTeamLeadAmount(rc.getTeam());
 			if(leadAmount<=65535) {
-				rc.writeSharedArray(4, rc.getTeamLeadAmount(rc.getTeam()));
+				rc.writeSharedArray(LEAD_BUDGET, leadAmount);
 
 			}
 			else {
-				rc.writeSharedArray(4,65535);
+				rc.writeSharedArray(LEAD_BUDGET, 65535);
 
 			}
 		}
 	}
 	
 	private void commUnderAttack(RobotController rc) throws GameActionException {
+		if (locCommIndex == 0) {
+			rc.writeSharedArray(UNDER_ATTACK, 0);
+		}
+		int previousValue = rc.readSharedArray(UNDER_ATTACK);
+		if (enemyNearby(rc)) {
+			rc.writeSharedArray(UNDER_ATTACK, previousValue + 1);
+		}
+
+		/* Uses math to designate which archon under attack, not really necessary
+
 		int prevValue = rc.readSharedArray(5);
 		if ((prevValue/Math.pow(10, locCommIndex))%2 == 0) { //NOT UNDER ATTACK LAST TURN
 			if (enemyNearby(rc) == true) {
@@ -74,6 +82,7 @@ public class Archon extends RobotLogic {
 				rc.writeSharedArray(5, prevValue - (int)Math.pow(10, locCommIndex));
 			}
 		}
+		*/
 	}
 	
 	private boolean enemyNearby(RobotController rc) throws GameActionException {
@@ -89,7 +98,6 @@ public class Archon extends RobotLogic {
 	
 	private void createRobot(RobotController rc, RobotType type) throws GameActionException {
 		Direction goalDir = directionToCenter(rc);
-		boolean built = false;
 		if (type == RobotType.MINER) {
 			if (rc.senseNearbyLocationsWithLead().length > 0) {
 				goalDir = rc.getLocation().directionTo(rc.senseNearbyLocationsWithLead()[0]);
@@ -102,13 +110,6 @@ public class Archon extends RobotLogic {
 		Direction realDir = closestAvailableDir(rc, goalDir);
 		if (rc.canBuildRobot(type, realDir)) {
 			rc.buildRobot(type, realDir);
-		}
-		if (built == true) {
-			if (type == RobotType.MINER) {
-				builtMiners += 1;
-			} else if (type == RobotType.SOLDIER) {
-				builtSoldiers += 1;
-			}
 		}
 	}
 	
@@ -194,7 +195,7 @@ public class Archon extends RobotLogic {
 				}
 			}
 			if(chosenChooChoo!=null) {
-				rc.setIndicatorString("train destination: "+chosenChooChoo);
+				//rc.setIndicatorString("train destination: "+chosenChooChoo);
 				//System.out.println("train destination: "+chosenChooChoo);
 				rc.writeSharedArray(10,locToComm(chosenChooChoo));
 			}
@@ -241,14 +242,14 @@ public class Archon extends RobotLogic {
 					}
 				}
 			}
-			rc.writeSharedArray(11,0);
+			rc.writeSharedArray(TRAIN_CORRECTION,0);
 			updated=true;
-		}else if(rc.readSharedArray(11)==1) {//hey broski, the archon ain't there
+		}else if(rc.readSharedArray(TRAIN_CORRECTION)==1) {//hey broski, the archon ain't there
 			//System.out.println("gotchu homie");
 			//a little extra boundary check
 			if(chosenSymmetry>=0&&chosenSymmetry<3) {
 				possibleSymmetries[chosenSymmetry]=false;
-				rc.writeSharedArray(11,0);
+				rc.writeSharedArray(TRAIN_CORRECTION,0);
 				updated=true;
 			}
 		}
@@ -335,34 +336,80 @@ public class Archon extends RobotLogic {
 			}
 		}
 	}
+
+	//Returns true if under cooldown, false if not
+	private void commCooldown(RobotController rc) throws GameActionException{
+		if (locCommIndex == 0) {
+			rc.writeSharedArray(ARCHON_COOLDOWN, 0);
+		}
+		int previousValue = rc.readSharedArray(ARCHON_COOLDOWN);
+		if (rc.isActionReady() == false) {
+			rc.writeSharedArray(ARCHON_COOLDOWN, previousValue + 1);
+		}
+	}
+
+	private int calculateMyBudget(RobotController rc) throws GameActionException{
+		if (rc.isActionReady() == false) {
+			return 0;
+		}
+		if (enemyNearby(rc)) {
+			return Math.min(75, rc.readSharedArray(LEAD_BUDGET));
+		}
+
+		//	(total pb - (num under attack*soldier cost))/(num of archons - archons on cooldown)
+		return (rc.readSharedArray(LEAD_BUDGET)-(rc.readSharedArray(UNDER_ATTACK)*75))/(rc.getArchonCount()-rc.readSharedArray(ARCHON_COOLDOWN));
+	}
+
 	public boolean run(RobotController rc) throws GameActionException{
+		if (rc.getRoundNum() == 1) {
+			updateLocComm(rc);
+		} else if(rc.getRoundNum()==2) {
+			buildFriendlyArchonArray(rc,friendlyArchonLocs);
+		}
+		commUnderAttack(rc);
+		commCooldown(rc);
+		updateBudgetComm(rc);
+		pbBudget = calculateMyBudget(rc);
+		rc.setIndicatorString("Archon pb budget: " + pbBudget);
+		
+		calculateChooChooDestination(rc);
+		
 		if (enemyNearby(rc) == true) {
 			createRobot(rc, RobotType.SOLDIER);
 		}
 
-		if (rc.getRoundNum() == 1) {
-			updateCommLoc(rc);
+		if (rc.getRobotCount() < 5*rc.getArchonCount()) {
 			createRobot(rc, RobotType.MINER);
-		} else if(rc.getRoundNum()==2) {
-			buildFriendlyArchonArray(rc,friendlyArchonLocs);
+		} else {
+			createRobot(rc, RobotType.SOLDIER);
 		}
-		updateBudgetLoc(rc);
-		commUnderAttack(rc);
-		calculateChooChooDestination(rc);
-		pbBudget = rc.readSharedArray(4)/rc.getArchonCount();
-		if (rc.getRoundNum() < super.TRANSITIONROUND) {//TRANSITIONROUND can be found and changed in RobotLogic (it's currently 50)
-			if (pbBudget >= 50+2*rc.getRoundNum()) {
-				createRobot(rc, RobotType.MINER);
-			}
-			readRubble(rc);
-			rc.setIndicatorString("speed index: "+speedIndex);
+
+
+		/*if (rc.getRoundNum() < 10 && pbBudget > 50) {
+			createRobot(rc, RobotType.MINER);
 		} else {
 			if (pbBudget >= 75) {
 				createRobot(rc, RobotType.SOLDIER);
-			} else if (builtSoldiers > 0.75*builtMiners) {
+			} else if (pbBudget >= 50) {
 				createRobot(rc, RobotType.MINER);
 			}
 		}
+
+		
+		if (rc.getRoundNum() < super.TRANSITIONROUND) {//TRANSITIONROUND can be found and changed in RobotLogic (it's currently 50)
+			if (pbBudget >= 50) {
+				createRobot(rc, RobotType.MINER);
+			}
+		} else {
+			if (pbBudget >= 75) {
+				createRobot(rc, RobotType.SOLDIER);
+			} else {
+				createRobot(rc, RobotType.MINER);
+			}
+		}*/
+
+		readRubble(rc);
+		//rc.setIndicatorString("speed index: "+speedIndex);
 		repairNearbyUnits(rc);
     	return true;
 	}
