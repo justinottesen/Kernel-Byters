@@ -2,6 +2,21 @@ package structured;
 import battlecode.common.*;
 import java.util.Random;
 public abstract class RobotLogic {
+	//COMMUNICATION ARRAY VALUES
+	public static final int ARCHON_1_LOC = 0;
+	public static final int ARCHON_2_LOC = 1;
+	public static final int ARCHON_3_LOC = 2;
+	public static final int ARCHON_4_LOC = 3;
+	public static final int LEAD_BUDGET = 4;
+	public static final int UNDER_ATTACK = 5;
+	public static final int ENEMY_ARCHON_1_LOC = 6;
+	public static final int ENEMY_ARCHON_2_LOC = 7;
+	public static final int ENEMY_ARCHON_3_LOC = 8;
+	public static final int ENEMY_ARCHON_4_LOC = 9;
+	public static final int TRAIN_DESTINATION = 10;
+	public static final int TRAIN_CORRECTION = 11;
+	public static final int ARCHON_COOLDOWN = 12;
+	
 	public static final Direction[] directions = {
             Direction.NORTH,
             Direction.NORTHEAST,
@@ -45,7 +60,7 @@ public abstract class RobotLogic {
 				}
 			}
 		}
-		return null;
+		return goalDir; //returns the goal direction if no directions are available, may change later
 	}
 	
 
