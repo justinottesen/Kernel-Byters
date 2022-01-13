@@ -16,6 +16,30 @@ public class Archon extends RobotLogic {
 	MapLocation[] minerLocs= {null,null,null,null,null,null,null,null,null,null};
 	private double speedIndex=0.0;
 	private int numTilesEvaluated=0;
+
+	private void repairNearbyUnits(RobotController rc) throws GameActionException{
+		RobotInfo[] nearbyTeammates = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
+		if (nearbyTeammates.length < 1) {
+			return;
+		}
+		int minHealth = 999;
+		MapLocation minHealthLoc = new MapLocation(0, 0);
+		for (int j = 0; j < 2; j++) { //j = 0 means look for soldiers only, j = 1 means go through all
+			for (int i = 0; i < nearbyTeammates.length; i++) {
+				if (j == 0 && nearbyTeammates[i].type != RobotType.SOLDIER) {
+					continue;
+				}
+				if (nearbyTeammates[i].health < minHealth) {
+				minHealth = nearbyTeammates[i].health;
+				minHealthLoc = nearbyTeammates[i].location;
+				}
+				if (minHealth < 50 && rc.canRepair(minHealthLoc)) {//50 is soldier max health, wont work on robots with max
+					rc.repair(minHealthLoc);
+					return;
+				}
+			}
+		}
+	}
 	
 	private void updateCommLoc(RobotController rc) throws GameActionException{
 		while (rc.readSharedArray(locCommIndex) != 0) {
@@ -72,7 +96,7 @@ public class Archon extends RobotLogic {
 			}
 		} else if (type == RobotType.SOLDIER) {
 			if (rc.senseNearbyRobots(34, rc.getTeam().opponent()).length > 0) {
-				goalDir = rc.getLocation().directionTo(rc.senseNearbyRobots(34, rc.getTeam().opponent())[0].location);
+				goalDir = rc.getLocation().directionTo(rc.senseNearbyRobots(-1, rc.getTeam().opponent())[0].location);
 			}
 		}
 		Direction realDir = closestAvailableDir(rc, goalDir);
@@ -339,6 +363,7 @@ public class Archon extends RobotLogic {
 				createRobot(rc, RobotType.MINER);
 			}
 		}
+		repairNearbyUnits(rc);
     	return true;
 	}
 }
