@@ -1,7 +1,6 @@
 package structured;
 import battlecode.common.*;
 public class Archon extends RobotLogic {
-	private int turnNum = 0;
 	private int pbBudget = 0;
 	private int locCommIndex = 0;
 	private int builtSoldiers = 0;
@@ -13,18 +12,20 @@ public class Archon extends RobotLogic {
 	MapLocation[] friendlyArchonLocs= {null,null,null,null};
 	MapLocation[] enemyArchonLocs= {null,null,null,null};
 	MapLocation[] killed= {null,null,null,null};
+	//stores the previous locations of the miners
+	MapLocation[] minerLocs= {null,null,null,null,null,null,null,null,null,null};
+	private double speedIndex=0.0;
+	private int numTilesEvaluated=0;
 	
 	private void updateCommLoc(RobotController rc) throws GameActionException{
 		while (rc.readSharedArray(locCommIndex) != 0) {
 			locCommIndex++;
 		}
-		//Andrew change: fixed syntax here
 		rc.writeSharedArray(locCommIndex,locToComm(rc.getLocation()));
 	}
 	
 	private void updateBudgetLoc(RobotController rc) throws GameActionException {
 		if (locCommIndex == 0) {
-			//Andrew change: what if our lead amount is more than the max flag?
 			int leadAmount=rc.getTeamLeadAmount(rc.getTeam());
 			if(leadAmount<=65535) {
 				rc.writeSharedArray(4, rc.getTeamLeadAmount(rc.getTeam()));
@@ -284,26 +285,53 @@ public class Archon extends RobotLogic {
 		//numRemaining == 0 is bad
 		return (numRemaining>1);
 	}
+	private void readRubble(RobotController rc) throws GameActionException{
+		//System.out.println("reading rubble");
+		final int twoToTheTwelth=(int)Math.pow(2,12);
+		for(int i=63;i>53;--i) {
+			int index=63-i;
+			int rubbleComm=rc.readSharedArray(i);
+			if(rubbleComm>0) {
+				int rubbleLocComm=rubbleComm % twoToTheTwelth;
+				MapLocation rubbleLoc=commToLoc(rubbleLocComm);
+				//System.out.println("rubbleloc: "+rubbleLoc);
+				//only make computations if it is a brand new comm or if the miner moved
+				if(minerLocs[index]==null||minerLocs[index].distanceSquaredTo(rubbleLoc)>0) {
+					//System.out.println("adding "+i+" to average");
+					//makes calculation as cumulative average
+					double total=(double)(speedIndex*numTilesEvaluated);
+					int rubbleNum=(rubbleComm-rubbleLocComm)/twoToTheTwelth;
+					//System.out.println("rubblenum: "+rubbleNum);
+					total+=rubbleNum;
+					numTilesEvaluated++;
+					speedIndex=total/numTilesEvaluated;
+					minerLocs[index]=rubbleLoc;
+				}
+				
+			}
+		}
+	}
 	public boolean run(RobotController rc) throws GameActionException{
-		turnNum ++;
 		if (enemyNearby(rc) == true) {
 			createRobot(rc, RobotType.SOLDIER);
 		}
 
-		if (turnNum == 1) {
+		if (rc.getRoundNum() == 1) {
 			updateCommLoc(rc);
 			createRobot(rc, RobotType.MINER);
-		} else if(turnNum==2) {
+		} else if(rc.getRoundNum()==2) {
 			buildFriendlyArchonArray(rc,friendlyArchonLocs);
 		}
 		updateBudgetLoc(rc);
 		commUnderAttack(rc);
 		calculateChooChooDestination(rc);
 		pbBudget = rc.readSharedArray(4)/rc.getArchonCount();
-		if (turnNum < super.TRANSITIONROUND) {//TRANSITIONROUND can be found and changed in RobotLogic (it's currently 50)
-			if (pbBudget >= 50+2*turnNum) {
+		if (rc.getRoundNum() < super.TRANSITIONROUND) {//TRANSITIONROUND can be found and changed in RobotLogic (it's currently 50)
+			if (pbBudget >= 50+2*rc.getRoundNum()) {
 				createRobot(rc, RobotType.MINER);
 			}
+			readRubble(rc);
+			rc.setIndicatorString("speed index: "+speedIndex);
 		} else {
 			if (pbBudget >= 75) {
 				createRobot(rc, RobotType.SOLDIER);
