@@ -20,7 +20,7 @@ public class Soldier extends RobotLogic {
 			}else {
 				//if it doesn't see a threat, move normally
 				assignment=super.allAboard(rc);
-				if(rc.getRoundNum()>=super.TRANSITIONROUND&&assignment!=null) {
+				if(rc.getRoundNum()>=super.TRANSITIONROUND&&assignment!=null&&rc.senseNearbyRobots(-1, rc.getTeam()).length >= 2) {
 					super.pathFind(rc,assignment);
 				}else {
 					super.randomMovement(rc);
