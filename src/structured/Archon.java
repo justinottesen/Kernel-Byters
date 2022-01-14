@@ -14,6 +14,7 @@ public class Archon extends RobotLogic {
 	MapLocation[] minerLocs= {null,null,null,null,null,null,null,null,null,null};
 	private double speedIndex=0.0;
 	private int numTilesEvaluated=0;
+	private int startLeadAmount = 0;
 
 	private void repairNearbyUnits(RobotController rc) throws GameActionException{
 		RobotInfo[] nearbyTeammates = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
@@ -360,24 +361,35 @@ public class Archon extends RobotLogic {
 		return (rc.readSharedArray(LEAD_BUDGET)-(rc.readSharedArray(UNDER_ATTACK)*75))/(rc.getArchonCount()-rc.readSharedArray(ARCHON_COOLDOWN));
 	}
 
+	private void updateLeadIncome(RobotController rc) throws GameActionException {
+		if (locCommIndex == 0) {
+			rc.writeSharedArray(LEAD_INCOME, rc.readSharedArray(MINER_LEAD_COUNTER));
+			rc.writeSharedArray(MINER_LEAD_COUNTER, 0);
+		}
+	}
+
 	public boolean run(RobotController rc) throws GameActionException{
 		if (rc.getRoundNum() == 1) {
 			updateLocComm(rc);
 		} else if(rc.getRoundNum()==2) {
 			buildFriendlyArchonArray(rc,friendlyArchonLocs);
 		}
+
+		updateLeadIncome(rc);
 		commUnderAttack(rc);
 		commCooldown(rc);
 		updateBudgetComm(rc);
 		pbBudget = calculateMyBudget(rc);
 		rc.setIndicatorString("Archon pb budget: " + pbBudget);
-		
+
 		calculateChooChooDestination(rc);
 		
 		if (enemyNearby(rc) == true) {
 			createRobot(rc, RobotType.SOLDIER);
 		}
-
+		if (rc.getRoundNum() <= 5) {
+			createRobot(rc, RobotType.MINER);
+		}
 		if (rc.getRobotCount() < 5*rc.getArchonCount()) {
 			createRobot(rc, RobotType.MINER);
 		} else {
@@ -407,7 +419,6 @@ public class Archon extends RobotLogic {
 				createRobot(rc, RobotType.MINER);
 			}
 		}*/
-
 		readRubble(rc);
 		//rc.setIndicatorString("speed index: "+speedIndex);
 		repairNearbyUnits(rc);
