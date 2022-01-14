@@ -1,7 +1,7 @@
 package structured;
 import battlecode.common.*;
 public class Archon extends RobotLogic {
-	private int pbBudget = 0;
+	private int leadBudget = 0;
 	private int locCommIndex = 0;
 	//0=rotation, 1=reflectionX, 2=reflectionY
 	private boolean[] possibleSymmetries= {true,true,true};
@@ -205,6 +205,15 @@ public class Archon extends RobotLogic {
 		return null;
 	}
 	
+	private boolean checkBestChooChooOrigin(RobotController rc) throws GameActionException {
+		MapLocation destination = commToLoc(rc.readSharedArray(TRAIN_DESTINATION));
+		int min_distance = 9999;
+		for (int i = 0; i < rc.getArchonCount(); i++) {
+			min_distance = Math.min(min_distance, destination.distanceSquaredTo(commToLoc(rc.readSharedArray(i))));
+		}
+		return (min_distance == destination.distanceSquaredTo(rc.getLocation()));
+	}
+	
 	//updates the possibleSymmetries array to reflect the enemy archon locations
 	//ideally, it should narrow it down to only 1 of the possible symmetries
 	//returns true if it actually updates something
@@ -353,7 +362,7 @@ public class Archon extends RobotLogic {
 		if (rc.isActionReady() == false) {
 			return 0;
 		}
-		if (enemyNearby(rc)) {
+		if (enemyNearby(rc) || checkBestChooChooOrigin(rc)) {
 			return Math.min(75, rc.readSharedArray(LEAD_BUDGET));
 		}
 
@@ -379,41 +388,43 @@ public class Archon extends RobotLogic {
 		commUnderAttack(rc);
 		commCooldown(rc);
 		updateBudgetComm(rc);
-		pbBudget = calculateMyBudget(rc);
-		rc.setIndicatorString("Archon pb budget: " + pbBudget);
+		leadBudget = calculateMyBudget(rc);
+		rc.setIndicatorString("Archon pb budget: " + leadBudget);
 
 		calculateChooChooDestination(rc);
+
 		
 		if (enemyNearby(rc) == true) {
 			createRobot(rc, RobotType.SOLDIER);
 		}
-		if (rc.getRoundNum() <= 5) {
-			createRobot(rc, RobotType.MINER);
-		}
 		if (rc.getRobotCount() < 5*rc.getArchonCount()) {
-			createRobot(rc, RobotType.MINER);
+			if (leadBudget >= 50) {
+				createRobot(rc, RobotType.MINER);
+			}
 		} else {
-			createRobot(rc, RobotType.SOLDIER);
+			if (leadBudget >= 75) {
+				createRobot(rc, RobotType.SOLDIER);
+			}
 		}
 
 
-		/*if (rc.getRoundNum() < 10 && pbBudget > 50) {
+		/*if (rc.getRoundNum() < 10 && leadBudget > 50) {
 			createRobot(rc, RobotType.MINER);
 		} else {
-			if (pbBudget >= 75) {
+			if (leadBudget >= 75) {
 				createRobot(rc, RobotType.SOLDIER);
-			} else if (pbBudget >= 50) {
+			} else if (leadBudget >= 50) {
 				createRobot(rc, RobotType.MINER);
 			}
 		}
 
 		
 		if (rc.getRoundNum() < super.TRANSITIONROUND) {//TRANSITIONROUND can be found and changed in RobotLogic (it's currently 50)
-			if (pbBudget >= 50) {
+			if (leadBudget >= 50) {
 				createRobot(rc, RobotType.MINER);
 			}
 		} else {
-			if (pbBudget >= 75) {
+			if (leadBudget >= 75) {
 				createRobot(rc, RobotType.SOLDIER);
 			} else {
 				createRobot(rc, RobotType.MINER);
