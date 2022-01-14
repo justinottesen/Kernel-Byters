@@ -16,6 +16,8 @@ public abstract class RobotLogic {
 	public static final int TRAIN_DESTINATION = 10;
 	public static final int TRAIN_CORRECTION = 11;
 	public static final int ARCHON_COOLDOWN = 12;
+	public static final int LEAD_INCOME = 13;
+	public static final int MINER_LEAD_COUNTER = 14;
 	
 	public static final Direction[] directions = {
             Direction.NORTH,
