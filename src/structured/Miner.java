@@ -45,6 +45,7 @@ public class Miner extends RobotLogic {
 		}
 	}
 	private void mine(RobotController rc) throws GameActionException{
+		int minedLead = 0;
 		MapLocation[] gold=rc.senseNearbyLocationsWithGold(2);
 		//use the new methods!
 		MapLocation[] lead=rc.senseNearbyLocationsWithLead(2,2);
@@ -57,10 +58,12 @@ public class Miner extends RobotLogic {
         }
         for(int i=0;i<lead.length;++i) {
         	//leave 1 lead remaining
-        	while(rc.canMineLead(lead[i])&&rc.senseLead(lead[i])>1) {
+			while(rc.canMineLead(lead[i])&&rc.senseLead(lead[i])>1) {
         		rc.mineLead(lead[i]);
+				minedLead ++;
         	}
         }
+		rc.writeSharedArray(MINER_LEAD_COUNTER, rc.readSharedArray(MINER_LEAD_COUNTER)+minedLead);
 	}
 	//now used for exploration mining
 	private void move(RobotController rc) throws GameActionException{
