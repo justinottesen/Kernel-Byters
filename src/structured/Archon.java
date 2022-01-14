@@ -17,7 +17,7 @@ public class Archon extends RobotLogic {
 	private int startLeadAmount = 0;
 
 	private void repairNearbyUnits(RobotController rc) throws GameActionException{
-		RobotInfo[] nearbyTeammates = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
+		RobotInfo[] nearbyTeammates = rc.senseNearbyRobots(-1, rc.getTeam());
 		if (nearbyTeammates.length < 1) {
 			return;
 		}
