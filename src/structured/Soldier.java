@@ -100,11 +100,12 @@ public class Soldier extends RobotLogic {
 	                		//update the archon list
 		                	for (int i = 6; i < 10; i++) {
 		                		//commToAttack is the id of the archon from comms
-		                		int commToAttack=rc.readSharedArray(i)/10000;
+		                		final int twoToTheTwelth=(int)Math.pow(2,12);
+		                		int commToAttack=rc.readSharedArray(i)/twoToTheTwelth;
 		                		if(rc.readSharedArray(i)!=0) {
 		                			if (enemies[targetFire].getID()==commToAttack) {
 			                			rc.writeSharedArray(i, 0);
-			                			System.out.println("took out archon "+commToAttack);
+			                			//System.out.println("took out archon "+commToAttack);
 			                			break;
 			                		}
 		                		}
