@@ -29,7 +29,7 @@ public abstract class RobotLogic {
             Direction.WEST,
             Direction.NORTHWEST,
     };
-	public static final Random rng = new Random(6147);
+	public static Random rng = new Random(6147);
 	public static final int TRANSITIONROUND = 50;
 	abstract boolean run(RobotController rc) throws GameActionException;
 
@@ -91,28 +91,25 @@ public abstract class RobotLogic {
 	
 	public void commEnemyArchonLoc(RobotController rc) throws GameActionException {
 		int enemyLocCommVal = 0;
+		int enemyArchonId=0;
 		RobotInfo[] enemyList = rc.senseNearbyRobots(20, rc.getTeam().opponent());
 		for (int i = 0; i < enemyList.length; i++) {
 			if (enemyList[i].getType() == RobotType.ARCHON) {
 				enemyLocCommVal = locToComm(enemyList[i].getLocation());
+				enemyArchonId=enemyList[i].getID();
 				break;
 			}
 		}
-		boolean newArchon = true;
+		int index=0;
 		for (int j = 6; j < 10; j++) {
-			if (enemyLocCommVal == rc.readSharedArray(j)) {
-				newArchon = false;
+			//looks to see if the id isn't unique
+			if (enemyArchonId == rc.readSharedArray(j)/10000||rc.readSharedArray(j) == 0) {
+				index=j;
 				break;
 			}
 		}
-		if (newArchon == true) {
-			for (int j = 6; j < 10; j++) {
-				if (rc.readSharedArray(j) == 0) {
-					rc.writeSharedArray(j, enemyLocCommVal);
-					break;
-				}
-			}
-		}
+		//uses modulo to embed the id
+		rc.writeSharedArray(index, enemyLocCommVal+enemyArchonId*10000);
 	}
 	
 	public void commNoEnemyArchon(RobotController rc, MapLocation assignment) throws GameActionException {
@@ -132,10 +129,13 @@ public abstract class RobotLogic {
 		MapLocation me = rc.getLocation();
 		Direction dir=me.directionTo(loc);
 		//get the rubble of the 3 possible movement directions + current location
-		int[] rubble= new int[4];
-		rubble[0]=rc.senseRubble(me.add(dir));
-		rubble[1]=rc.senseRubble(me.add(dir.rotateLeft()));
-		rubble[2]=rc.senseRubble(me.add(dir.rotateRight()));
+		int[] rubble= {6969,6969,6969,6969};
+		if(rc.onTheMap(me.add(dir)))
+			rubble[0]=rc.senseRubble(me.add(dir));
+		if(rc.onTheMap(me.add(dir.rotateLeft())))
+			rubble[1]=rc.senseRubble(me.add(dir.rotateLeft()));
+		if(rc.onTheMap(me.add(dir.rotateRight())))
+			rubble[2]=rc.senseRubble(me.add(dir.rotateRight()));
 		rubble[3]=rc.senseRubble(me);
 		Direction[] dirs= {dir,dir.rotateLeft(),dir.rotateRight(),Direction.CENTER};
 
@@ -437,6 +437,7 @@ public abstract class RobotLogic {
 		}
 	}
     public void randomMovement(RobotController rc) throws GameActionException{
+    	rng=new Random(rc.getID()*rc.getRoundNum());
     	Direction dir = directions[rng.nextInt(directions.length)];
         if (rc.canMove(dir)) {
             rc.move(dir);
