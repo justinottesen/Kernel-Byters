@@ -19,7 +19,6 @@ public abstract class RobotLogic {
 	public static final int LEAD_INCOME = 13;
 	public static final int MINER_LEAD_COUNTER = 14;
 	public static final int ENEMY_SOLDIER_SEEN = 15;
-
 	
 	public static final Direction[] directions = {
             Direction.NORTH,
@@ -92,6 +91,7 @@ public abstract class RobotLogic {
 	}
 	
 	public void commEnemyArchonLoc(RobotController rc) throws GameActionException {
+		final int twoToTheTwelth=(int)Math.pow(2,12);
 		int enemyLocCommVal = 0;
 		int enemyArchonId=0;
 		RobotInfo[] enemyList = rc.senseNearbyRobots(20, rc.getTeam().opponent());
@@ -105,13 +105,24 @@ public abstract class RobotLogic {
 		int index=0;
 		for (int j = 6; j < 10; j++) {
 			//looks to see if the id isn't unique
-			if (enemyArchonId == rc.readSharedArray(j)/10000||rc.readSharedArray(j) == 0) {
+			if (enemyArchonId == rc.readSharedArray(j)/twoToTheTwelth) {
 				index=j;
 				break;
 			}
 		}
+		
+		//if id is unique, look for first available slot
+		if(index==0) {
+			for (int j = 6; j < 10; j++) {
+				//looks to see if the id isn't unique
+				if (rc.readSharedArray(j) == 0) {
+					index=j;
+					break;
+				}
+			}
+		}
 		//uses modulo to embed the id
-		rc.writeSharedArray(index, enemyLocCommVal+enemyArchonId*10000);
+		rc.writeSharedArray(index, enemyLocCommVal+enemyArchonId*twoToTheTwelth);
 	}
 	
 	public void commNoEnemyArchon(RobotController rc, MapLocation assignment) throws GameActionException {
