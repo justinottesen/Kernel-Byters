@@ -3,6 +3,9 @@ import battlecode.common.*;
 public class Archon extends RobotLogic {
 	private int leadBudget = 0;
 	private int locCommIndex = 0;
+	private int soldiersMade = 0;
+	private int minersMade = 0;
+	private int averageArchonDistance = 0;
 	//0=rotation, 1=reflectionX, 2=reflectionY
 	private boolean[] possibleSymmetries= {true,true,true};
 	private int chosenSymmetry=-1;
@@ -111,6 +114,11 @@ public class Archon extends RobotLogic {
 		Direction realDir = closestAvailableDir(rc, goalDir);
 		if (rc.canBuildRobot(type, realDir)) {
 			rc.buildRobot(type, realDir);
+			if (type == RobotType.MINER) {
+				minersMade ++;
+			} else if (type == RobotType.SOLDIER) {
+				soldiersMade ++;
+			}
 		}
 	}
 	
@@ -377,11 +385,24 @@ public class Archon extends RobotLogic {
 		}
 	}
 
+	private int averageArchonDistance(RobotController rc) throws GameActionException {
+        int totalDist = 0;
+        int numConnections = 0;
+        for (int i = 0; i < rc.getArchonCount(); i++) {
+            for (int j = i+1; j < rc.getArchonCount(); j++) {
+                totalDist += commToLoc(rc.readSharedArray(i)).distanceSquaredTo(commToLoc(rc.readSharedArray(j)));
+                numConnections += 1;
+            }
+        }
+        return totalDist/numConnections;
+	}
+
 	public boolean run(RobotController rc) throws GameActionException{
 		if (rc.getRoundNum() == 1) {
 			updateLocComm(rc);
 		} else if(rc.getRoundNum()==2) {
 			buildFriendlyArchonArray(rc,friendlyArchonLocs);
+			averageArchonDistance = averageArchonDistance(rc);
 		}
 
 		updateLeadIncome(rc);
@@ -396,13 +417,42 @@ public class Archon extends RobotLogic {
 		if (enemyNearby(rc) == true) {
 			createRobot(rc, RobotType.SOLDIER);
 		}
-		if (rc.getRobotCount() < 3*rc.getArchonCount() || rc.readSharedArray(LEAD_INCOME) < 3) {
-			if (leadBudget >= 50) {
+		
+		if (averageArchonDistance < 40) {
+			if (minersMade < 4 || rc.getRoundNum() > 200 && minersMade <= 10) {
 				createRobot(rc, RobotType.MINER);
+			} else {
+				createRobot(rc, RobotType.SOLDIER);
+			}
+		} else if (averageArchonDistance < 1200) {
+			if (minersMade < 3 || rc.getRoundNum() > 400 && minersMade <= 6) {
+				if (leadBudget >= 50) {
+					createRobot(rc, RobotType.MINER);
+				}
+			} else {
+				if (leadBudget >= 75 || rc.getRoundNum() > 600 && minersMade <= 6) {
+					createRobot(rc, RobotType.SOLDIER);
+				}
+			}
+		} else if (averageArchonDistance < 1500) {
+			if (minersMade < 3 || rc.readSharedArray(ENEMY_SOLDIER_SEEN) == 0 && minersMade < 6) {
+				if (leadBudget >= 50) {
+					createRobot(rc, RobotType.MINER);
+				}
+			} else {
+				if (leadBudget >= 75) {
+					createRobot(rc, RobotType.SOLDIER);
+				}
 			}
 		} else {
-			if (leadBudget >= 75) {
-				createRobot(rc, RobotType.SOLDIER);
+			if (minersMade < 3 || rc.readSharedArray(ENEMY_SOLDIER_SEEN) == 0 && minersMade < 6) {
+				if (leadBudget >= 50) {
+					createRobot(rc, RobotType.MINER);
+				}
+			} else {
+				if (leadBudget >= 75) {
+					createRobot(rc, RobotType.SOLDIER);
+				}
 			}
 		}
 
