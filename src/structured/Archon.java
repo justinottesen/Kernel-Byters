@@ -8,11 +8,12 @@ public class Archon extends RobotLogic {
 	private int averageArchonDistance = 0;
 	//0=rotation, 1=reflectionX, 2=reflectionY
 	private boolean[] possibleSymmetries= {true,true,true};
+	private boolean bullShiteryDetected=false;
 	private int chosenSymmetry=-1;
 	//stores the locations of the 4 team archons (friendlyArchonsLocs[locCommIndex] == rc.getLocation())
 	MapLocation[] friendlyArchonLocs= {null,null,null,null};
 	MapLocation[] enemyArchonLocs= {null,null,null,null};
-	MapLocation[] killed= {null,null,null,null};
+	MapLocation[] notThere= {};
 	//stores the previous locations of the miners
 	MapLocation[] minerLocs= {null,null,null,null,null,null,null,null,null,null};
 	private double speedIndex=0.0;
@@ -163,6 +164,28 @@ public class Archon extends RobotLogic {
 		if(rc.getRoundNum()<10||updateSymmetryPossibilities(rc)) {
 			int lowest=69696969;
 			MapLocation chosenChooChoo=null;
+			
+			//first looks among known archon locations
+			for(int i=0;i<4;++i) {
+				if(enemyArchonLocs[i]!=null) {
+					int distance=0;
+					for(int j=0;j<4;++j) {
+						if(friendlyArchonLocs[j]!=null) {
+							distance+=enemyArchonLocs[i].distanceSquaredTo(friendlyArchonLocs[j]);
+						}
+					}
+					if(distance<lowest) {
+						lowest=distance;
+						chosenChooChoo=enemyArchonLocs[i];
+					}
+				}
+			}
+			if(chosenChooChoo!=null) {
+				//System.out.println("train destination: "+chosenChooChoo);
+				rc.writeSharedArray(10,locToComm(chosenChooChoo));
+				return chosenChooChoo;
+			}
+			//if no enemy archon location is certain, use symmetry
 			for(int i=0;i<4;++i) {
 				if(friendlyArchonLocs[i]!=null) {
 					//iterate through the 3 symmetries
@@ -182,9 +205,9 @@ public class Archon extends RobotLogic {
 										distance+=69696969;
 										//hopefully that overrides
 									}else {//act normally
-										//make sure it isn't one of the already killed bases
-										for(int l=0;l<4;l++) {
-											if(killed[l]!=null&&possibleDestination.distanceSquaredTo(killed[l])<10) {
+										//make sure it isn't one of the checked off bases
+										for(int l=0;l<notThere.length;l++) {
+											if(notThere[l]!=null&&possibleDestination.distanceSquaredTo(notThere[l])<10) {
 												distance+=69696969;
 											}
 										}
@@ -236,9 +259,10 @@ public class Archon extends RobotLogic {
 			//System.out.println("detected array change");
 			if(shouldReevaluateSymmetry()) {
 				//goes through each of the enemy archon slots
+				boolean[] temp=possibleSymmetries.clone();
 				for (int j = 6; j < 10; j++) {
-					int enemyArchonComm=rc.readSharedArray(j);
-					if (enemyArchonComm!=0) {
+					int enemyArchonComm=rc.readSharedArray(j)%10000;
+					if (enemyArchonComm!=rc.readSharedArray(j)) {
 						//if comm slot isn't empty...
 						MapLocation enemyArchonLoc=commToLoc(enemyArchonComm);
 						for(int i=0;i<3;++i) {
@@ -251,6 +275,8 @@ public class Archon extends RobotLogic {
 										//if the projection matches reality (with a little leeway)
 										if(projectedEnemyArchonLoc.isWithinDistanceSquared(enemyArchonLoc,3)) {
 											symmetryWorks=true;
+											//System.out.println("projected: "+projectedEnemyArchonLoc);
+											//System.out.println("reality: "+enemyArchonLoc);
 										}
 									}
 								}
@@ -259,14 +285,25 @@ public class Archon extends RobotLogic {
 						}
 					}
 				}
+				if(!possibleSymmetries[0]&&!possibleSymmetries[1]&&!possibleSymmetries[2]) {
+					//bullshitery (moving archons) detected
+					bullShiteryDetected=true;
+					//revert back to the previous possibleSymmetries
+					possibleSymmetries=temp;
+				}
 			}
 			rc.writeSharedArray(TRAIN_CORRECTION,0);
 			updated=true;
 		}else if(rc.readSharedArray(TRAIN_CORRECTION)==1) {//hey broski, the archon ain't there
 			//System.out.println("gotchu homie");
+			//System.out.println("Symmetries left: rotation: "+possibleSymmetries[0]+", reflectionX: "+possibleSymmetries[1]+", reflectionY: "+possibleSymmetries[2]);
 			//a little extra boundary check
 			if(chosenSymmetry>=0&&chosenSymmetry<3) {
-				possibleSymmetries[chosenSymmetry]=false;
+				//System.out.println("gotcha bitch! "+chosenSymmetry);
+				if(!bullShiteryDetected)
+					possibleSymmetries[chosenSymmetry]=false;
+				//add to the list of not there
+				addNotThere(commToLoc(rc.readSharedArray(10)));
 				rc.writeSharedArray(TRAIN_CORRECTION,0);
 				updated=true;
 			}
@@ -286,11 +323,13 @@ public class Archon extends RobotLogic {
 	//assuming archons is an array of 4 nulls
 	//fills the array with the 4 locations of the enemy archons (leaves them null if they don't exist in comms)
 	private void buildEnemyArchonArray(RobotController rc, MapLocation[] enemyArchons) throws GameActionException{
+		final int twoToTheTwelth=(int)Math.pow(2,12);
 		//the only difference from building the friendly array is the index
 		for(int i=6;i<10;++i) {
-			int archonComm=rc.readSharedArray(i);
-			if(archonComm!=0) {
+			int archonComm=rc.readSharedArray(i)%twoToTheTwelth;
+			if(rc.readSharedArray(i)!=0) {
 				enemyArchons[i-6]=commToLoc(archonComm);
+				//System.out.println("enemy archon"+(i-5)+": "+enemyArchons[i-6]);
 			}else {
 				enemyArchons[i-6]=null;
 			}
@@ -307,11 +346,8 @@ public class Archon extends RobotLogic {
 				continue;
 			if(((array1[i]==null)!=(array2[i]==null))||(array1[i].x!=array2[i].x||array1[i].y!=array2[i].y)) {
 				if(array2[i]==null) {
-					//add to killed list
-					int index=0;
-					while(index<4&&killed[index]!=null)
-						index++;
-					killed[index]=array1[i];
+					//add to notThere
+					addNotThere(array1[i]);
 				}
 				return false;
 			}
@@ -319,6 +355,8 @@ public class Archon extends RobotLogic {
 		return true;
 	}
 	private boolean shouldReevaluateSymmetry() {
+		if(bullShiteryDetected)
+			return false;
 		int numRemaining=0;
 		for(int i=0;i<3;++i) {
 			if(possibleSymmetries[i]) {
@@ -327,6 +365,24 @@ public class Archon extends RobotLogic {
 		}
 		//numRemaining == 0 is bad
 		return (numRemaining>1);
+	}
+	private void addNotThere(MapLocation m) {
+		//System.out.println("not there: "+m);
+		//first make sure that the maplocation isn't a repeat
+		for(int i=0;i<notThere.length;++i) {
+			if(notThere[i].distanceSquaredTo(m)==0) {
+				//System.out.println("repeat");
+				return;
+			}
+		}
+		//System.out.println("unique!");
+		//resize the array
+		MapLocation[] tempLocs=new MapLocation[notThere.length+1];
+		for(int i=0;i<notThere.length;++i) {
+			tempLocs[i]=notThere[i];
+		}
+		tempLocs[notThere.length]=m;
+		notThere=tempLocs;
 	}
 	private void readRubble(RobotController rc) throws GameActionException{
 		//System.out.println("reading rubble");
@@ -396,7 +452,6 @@ public class Archon extends RobotLogic {
         }
         return totalDist/numConnections;
 	}
-
 	public boolean run(RobotController rc) throws GameActionException{
 		if (rc.getRoundNum() == 1) {
 			updateLocComm(rc);
@@ -466,7 +521,6 @@ public class Archon extends RobotLogic {
 				createRobot(rc, RobotType.MINER);
 			}
 		}
-
 		
 		if (rc.getRoundNum() < super.TRANSITIONROUND) {//TRANSITIONROUND can be found and changed in RobotLogic (it's currently 50)
 			if (leadBudget >= 50) {
