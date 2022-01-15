@@ -8,6 +8,15 @@ public class Miner extends RobotLogic {
 	private int role=-1;
 	@Override
 	public boolean run(RobotController rc) throws GameActionException{
+		RobotInfo[] enemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
+		if (enemies.length > 0) {
+			for (int i = 0; i < enemies.length; i++) {
+				if (enemies[i].type == RobotType.SOLDIER) {
+					rc.writeSharedArray(ENEMY_SOLDIER_SEEN, 1);
+					break;
+				}
+			}
+		}
 		if(role==-1||(role==0&&rc.getRoundNum()==super.TRANSITIONROUND+1)) {
 			determineRole(rc);
 		}
@@ -29,6 +38,27 @@ public class Miner extends RobotLogic {
         }
         //doesn't need to be in train mode to report enemy archons!
     	commEnemyArchonLoc(rc);
+		/*
+		if (rc.readSharedArray(LEAD_INCOME) == 0) {
+			if (rc.senseNearbyLocationsWithLead(-1, 2).length < 3 && rc.getRobotCount() > rc.getArchonCount()*5) {
+				RobotInfo[] nearby = rc.senseNearbyRobots();
+				int visibleMinerCount = 0;
+				for (int j = 0; j < 2; j++) {
+					for (int i = 0; i < nearby.length; i++) {
+						if (j == 0 && nearby[i].team == rc.getTeam().opponent()) {
+							break;
+						}
+						if (j == 0 && nearby[i].type == RobotType.MINER) {
+							visibleMinerCount ++;
+						}
+						if (j == 1 && nearby[i].type == RobotType.ARCHON && visibleMinerCount > 1 && rc.getLocation().distanceSquaredTo(nearby[i].location) < 6) {
+							rc.disintegrate();
+							return true;
+						}
+					}
+				}
+			}
+		}*/
 		return true;
 	}
 	private void determineRole(RobotController rc) throws GameActionException{
@@ -37,7 +67,7 @@ public class Miner extends RobotLogic {
 		}else {
 			Random random=new Random(rc.getID());
 			int i=random.nextInt(10);
-			if(i>3) {
+			if(i>2) {
 				role=0;
 			}else {
 				role=1;
