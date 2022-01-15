@@ -385,9 +385,6 @@ public class Archon extends RobotLogic {
 		}
 
 		updateLeadIncome(rc);
-		if (locCommIndex == 0) {
-			System.out.println(rc.readSharedArray(LEAD_INCOME));
-		}
 		commUnderAttack(rc);
 		commCooldown(rc);
 		updateBudgetComm(rc);
@@ -399,7 +396,7 @@ public class Archon extends RobotLogic {
 		if (enemyNearby(rc) == true) {
 			createRobot(rc, RobotType.SOLDIER);
 		}
-		if (rc.getRobotCount() < 3*rc.getArchonCount() || rc.readSharedArray(LEAD_INCOME) < 5) {
+		if (rc.getRobotCount() < 3*rc.getArchonCount() || rc.readSharedArray(LEAD_INCOME) < 3) {
 			if (leadBudget >= 50) {
 				createRobot(rc, RobotType.MINER);
 			}
