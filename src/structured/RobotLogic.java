@@ -139,6 +139,25 @@ public abstract class RobotLogic {
 		}
 		rc.writeSharedArray(11, 1);
 	}
+	public void superGreedy(RobotController rc) throws GameActionException{
+		MapLocation me=rc.getLocation();
+		int lowest=696969;
+		int index=0;
+		for(int i=0;i<directions.length;++i) {
+			MapLocation adjacent=me.add(directions[i]);
+			if(rc.onTheMap(adjacent)&&rc.senseRobotAtLocation(adjacent)==null) {
+				int rubble=rc.senseRubble(adjacent);
+				if(rubble<lowest) {
+					lowest=rubble;
+					index=i;
+				}
+			}
+		}
+		if(rc.canMove(directions[index])) {
+			rc.move(directions[index]);
+		}
+	}
+	
 	//greedy pathfinding, ideal for soldier combat
 	public void greedy(RobotController rc, MapLocation loc) throws GameActionException{
 		MapLocation me = rc.getLocation();
@@ -220,7 +239,7 @@ public abstract class RobotLogic {
 		}
 	}
 	//bytecode cost: around 3000
-	private TileData[] getHemisphereTiles(RobotController rc, MapLocation assignment) throws GameActionException{
+	public TileData[] getHemisphereTiles(RobotController rc, MapLocation assignment) throws GameActionException{
 		MapLocation me=rc.getLocation();
 		Direction dir=me.directionTo(assignment);
 		if(dir!=Direction.CENTER) {
@@ -280,7 +299,7 @@ public abstract class RobotLogic {
 	}
     
 	//note: currently unused
-	private int getAveragePassibility(TileData[] hemisphere){
+	public int getAveragePassibility(TileData[] hemisphere){
     	int total=0;
     	for(int i=0;i<hemisphere.length;++i) {
     		if(hemisphere[i]!=null) {
