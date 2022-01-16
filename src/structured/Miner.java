@@ -8,12 +8,14 @@ public class Miner extends RobotLogic {
 	private int role=-1;
 	@Override
 	public boolean run(RobotController rc) throws GameActionException{
-		RobotInfo[] enemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
-		if (enemies.length > 0) {
-			for (int i = 0; i < enemies.length; i++) {
-				if (enemies[i].type == RobotType.SOLDIER) {
-					rc.writeSharedArray(ENEMY_SOLDIER_SEEN, 1);
-					break;
+		if (rc.readSharedArray(ENEMY_SOLDIER_SEEN) == 0) {
+			RobotInfo[] enemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
+			if (enemies.length > 0) {
+				for (int i = 0; i < enemies.length; i++) {
+					if (enemies[i].type == RobotType.SOLDIER) {
+						rc.writeSharedArray(ENEMY_SOLDIER_SEEN, 1);
+						break;
+					}
 				}
 			}
 		}
@@ -59,6 +61,7 @@ public class Miner extends RobotLogic {
 				}
 			}
 		}*/
+		rc.writeSharedArray(MINER_NUMBER_COUNTER, rc.readSharedArray(MINER_NUMBER_COUNTER)+1);
 		return true;
 	}
 	private void determineRole(RobotController rc) throws GameActionException{
