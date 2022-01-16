@@ -3,6 +3,7 @@ import battlecode.common.*;
 public class Archon extends RobotLogic {
 	private int leadBudget = 0;
 	private int locCommIndex = 0;
+	private int numMiners = 0;
 	private int soldiersMade = 0;
 	private int minersMade = 0;
 	private int buildersMade = 0;
@@ -448,7 +449,7 @@ public class Archon extends RobotLogic {
         if (rc.getArchonCount() == 1) {
 			return 0;
 		}
-	int totalDist = 0;
+		int totalDist = 0;
         int numConnections = 0;
         for (int i = 0; i < rc.getArchonCount(); i++) {
             for (int j = i+1; j < rc.getArchonCount(); j++) {
@@ -469,6 +470,13 @@ public class Archon extends RobotLogic {
 		}
 	}
 
+	private void commNumMiners(RobotController rc) throws GameActionException {
+		if (primaryArchonCheck(rc) == true) {
+			rc.writeSharedArray(MINER_NUMBER, rc.readSharedArray(MINER_NUMBER_COUNTER));
+			rc.writeSharedArray(MINER_NUMBER_COUNTER, 0);
+		}
+	}
+
 	public boolean run(RobotController rc) throws GameActionException{
 		if (rc.getRoundNum() == 1) {
 			updateLocComm(rc);
@@ -478,11 +486,13 @@ public class Archon extends RobotLogic {
 		}
 		primaryArchon = primaryArchonCheck(rc);
 
+		commNumMiners(rc);
 		updateLeadIncome(rc);
 		commUnderAttack(rc);
 		commCooldown(rc);
 		updateBudgetComm(rc);
 		leadBudget = calculateMyBudget(rc);
+		numMiners = rc.readSharedArray(MINER_NUMBER);
 		rc.setIndicatorString("Archon pb budget: " + leadBudget);
 
 		calculateChooChooDestination(rc);
@@ -491,24 +501,29 @@ public class Archon extends RobotLogic {
 			createRobot(rc, RobotType.SOLDIER);
 		}
 		/*
+		if (numMiners < 2*rc.getArchonCount() && leadBudget >= 50 && rc.getRoundNum() > 500) {
+			createRobot(rc, RobotType.MINER);
+		}*/
+
+		/*
 		if (rc.getRoundNum() > 100 && rc.readSharedArray(LEAD_BUDGET) > 200*rc.getArchonCount()) {
 			System.out.println("MAKING BUILDER");
 			createRobot(rc, RobotType.BUILDER);
 		}*/
 		
-		if (averageArchonDistance < 40) {
-			if (minersMade < 4 || rc.getRoundNum() > 200 && minersMade <= 10) {
+		if (averageArchonDistance <= 80) {
+			if (minersMade < 4 || rc.readSharedArray(ENEMY_SOLDIER_SEEN) == 0 && minersMade < 6) {
 				createRobot(rc, RobotType.MINER);
 			} else {
 				createRobot(rc, RobotType.SOLDIER);
 			}
 		} else if (averageArchonDistance < 1200) {
-			if (minersMade < 3 || rc.getRoundNum() > 400 && minersMade <= 6) {
-				if (leadBudget >= 50) {
+			if (minersMade < 3) {
+				if (leadBudget >= 50 || rc.readSharedArray(ENEMY_SOLDIER_SEEN) == 0 && minersMade < 6) {
 					createRobot(rc, RobotType.MINER);
 				}
 			} else {
-				if (leadBudget >= 75 || rc.getRoundNum() > 600 && minersMade <= 6) {
+				if (leadBudget >= 75 || rc.readSharedArray(ENEMY_SOLDIER_SEEN) == 0 && minersMade < 6) {
 					createRobot(rc, RobotType.SOLDIER);
 				}
 			}
