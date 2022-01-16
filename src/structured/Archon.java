@@ -445,10 +445,10 @@ public class Archon extends RobotLogic {
 	}
 
 	private int averageArchonDistance(RobotController rc) throws GameActionException {
-        if (rc.getArchonCount() == 0) {
+        if (rc.getArchonCount() == 1) {
 			return 0;
 		}
-		int totalDist = 0;
+	int totalDist = 0;
         int numConnections = 0;
         for (int i = 0; i < rc.getArchonCount(); i++) {
             for (int j = i+1; j < rc.getArchonCount(); j++) {
