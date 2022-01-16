@@ -21,6 +21,9 @@ public abstract class RobotLogic {
 	public static final int ENEMY_SOLDIER_SEEN = 15;
 	public static final int PRIMARY_ARCHON = 16;
 	public static final int WATCHTOWERS = 17;
+	public static final int MINER_NUMBER_COUNTER = 18;
+	public static final int MINER_NUMBER = 19;
+
 	
 	public static final Direction[] directions = {
             Direction.NORTH,
