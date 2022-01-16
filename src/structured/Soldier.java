@@ -9,25 +9,33 @@ public class Soldier extends RobotLogic {
 		
 		//doesn't move if getting healed (for now)
 		if(!gettingHealed(rc)) {
-			//attack anyone within range
+			//attack anyone within attacking range
 			if(target!=null) {
+				//engage
 				//if it sees threat, micro
 				microThatBitch(rc,target);
 			}else { 
-				if(retreat(rc)){
-					//retreating
-					assignment=getNearestArchon(rc);
-					super.pathFind(rc,assignment);
-				
-					//todo: search for high health soldiers to support and follow
-				}else {
-					//if it doesn't see a threat, move normally
-					assignment=super.allAboard(rc);
-					if(rc.getRoundNum()>=super.TRANSITIONROUND&&assignment!=null) {
+				assignment=super.allAboard(rc);
+				//mayber remove first condition?
+				if(rc.getRoundNum()>=super.TRANSITIONROUND&&assignment!=null) {
+					//todo: look for enemies outside of attack radius and decide whether to engage
+					//also make sure its not about to run into a bunch of rubble
+					int decision=advance(rc);
+					//0 = retreat, 1 = stay put, 2 = advance
+					if(decision==0){
+						//retreating
+						assignment=getNearestArchon(rc);
 						super.pathFind(rc,assignment);
+					}else if(decision==1){
+						//stay put and defend/wait for reinforcements
+						super.superGreedy(rc);
+						//move to the lowest-rubble adjacent tile just in case
 					}else {
-						super.randomMovement(rc);
+						//if it doesn't see a threat, move normally
+						super.pathFind(rc,assignment);
 					}
+				}else {
+					super.randomMovement(rc);
 				}
 				
 				//okay I'm mad, why didn't we make the bots attack after moving too
@@ -85,7 +93,7 @@ public class Soldier extends RobotLogic {
         		//it found other unit
         		targetFire=other;
         	}
-        	rc.setIndicatorString("attack: "+attackUnit+", archon: "+archon+", other: "+other+", target: "+targetFire);
+        	//rc.setIndicatorString("attack: "+attackUnit+", archon: "+archon+", other: "+other+", target: "+targetFire);
         	if(targetFire>=0) {
 	            MapLocation toAttack = enemies[targetFire].location;
 	            if (rc.canAttack(toAttack)) {
@@ -124,12 +132,12 @@ public class Soldier extends RobotLogic {
 	private void microThatBitch(RobotController rc,RobotInfo target) throws GameActionException{
 		//only micro if it sees attacking threats
 		RobotType type=target.getType();
+		MapLocation me=rc.getLocation();
+		MapLocation targetLoc=target.getLocation();
 		if(type==RobotType.SOLDIER||type==RobotType.SAGE||type==RobotType.WATCHTOWER) {
 			//retreat if self is weak (1/3 health or less)
 			if(rc.getHealth()<rc.getType().getMaxHealth(0)/3) {
 				//retreat, which means moving in the opposite direction of the enemy
-				MapLocation me=rc.getLocation();
-				MapLocation targetLoc=target.getLocation();
 				int dx=targetLoc.x-me.x;
 				int dy=targetLoc.y-me.y;
 				MapLocation retreatLoc=new MapLocation(me.x-2*dx,me.y-2*dy);
@@ -137,12 +145,20 @@ public class Soldier extends RobotLogic {
 				super.greedy(rc,retreatLoc);
 			}else if(target.getHealth()<target.getType().getMaxHealth(target.getLevel())/3) {//pursue if enemy is weak (1/3 health or less)
 				//pursue, which means moving in the direction of the enemy
-				super.greedy(rc,target.getLocation());
+				if(me.distanceSquaredTo(targetLoc)<16) {
+					super.superGreedy(rc);
+				}else {
+					super.greedy(rc,target.getLocation());
+				}
 			}
 		}else if(type==RobotType.ARCHON) {
 			//pursue archons no matter what
 			//go for the kill!
-			super.greedy(rc,target.getLocation());
+			if(me.distanceSquaredTo(targetLoc)<16) {
+				super.superGreedy(rc);
+			}else {
+				super.greedy(rc,target.getLocation());
+			}
 		}
 	}
 	
@@ -176,12 +192,6 @@ public class Soldier extends RobotLogic {
 		return null;
 	}
 	
-	
-	//for now, return true if hp < 1/3 max health
-	private boolean retreat(RobotController rc) throws GameActionException{
-		return (rc.getHealth()<rc.getType().getMaxHealth(0)/3);
-	}
-	
 	//for now, return true if within healing range of archon and hp < max health
 	private boolean gettingHealed(RobotController rc) throws GameActionException{
 		return(farFromHome<21&&rc.getHealth()<rc.getType().getMaxHealth(0));
@@ -199,5 +209,69 @@ public class Soldier extends RobotLogic {
 			}
 		}
 		return false;
+	}
+	
+	//for now, return true if hp < 1/3 max health
+	private boolean retreat(RobotController rc) throws GameActionException{
+		return (rc.getHealth()<rc.getType().getMaxHealth(0)/4);
+	}
+	
+	//this might take a lot of bytecode
+	//returns 2 if the soldier should advance, 1 if it should stay put, 0 if it should retreat
+	private int advance(RobotController rc) throws GameActionException{
+		MapLocation me=rc.getLocation();
+		//take into account unit health, terrain in front, number of allies, and number of enemies
+		int health=rc.getHealth();
+		RobotInfo[] allies=rc.senseNearbyRobots(20,rc.getTeam());
+		RobotInfo[] enemies=rc.senseNearbyRobots(20,rc.getTeam().opponent());
+		
+		int selfRubble=rc.senseRubble(me);
+		
+		TileData[] hemisphere=super.getHemisphereTiles(rc,assignment);
+		int rubble=super.getAveragePassibility(hemisphere);
+		
+		int allyCount=1; //including self
+		int allyHp=health;//also including self
+		int allyRubble=selfRubble;//also including self
+		for(int i=0;i<allies.length;++i) {
+			RobotType type=allies[i].getType();
+			//include watchtowers?
+			if(type==RobotType.SOLDIER||type==RobotType.SAGE) {
+				allyCount++;
+				allyHp+=allies[i].getHealth();
+				allyRubble+=rc.senseRubble(allies[i].getLocation());
+			}
+		}
+		
+		int enemyCount=0;
+		int enemyHp=0;
+		int enemyRubble=0;
+		for(int i=0;i<enemies.length;++i) {
+			RobotType type=enemies[i].getType();
+			//include watchtowers?
+			if(type==RobotType.SOLDIER||type==RobotType.SAGE) {
+				enemyCount++;
+				enemyHp+=enemies[i].getHealth();
+				enemyRubble+=rc.senseRubble(enemies[i].getLocation());
+			}
+		}
+		
+		rc.setIndicatorString("rubble "+rubble+", ally "+(allyCount*20)/((allyRubble/10)+1));
+		//advance if rubble is low and allies are more than enemies
+		
+		//if enemy looks overwhelming or self-hp is low, retreat
+		if(allyHp<allyCount*RobotType.SOLDIER.getMaxHealth(0)/4&&health<RobotType.SOLDIER.getMaxHealth(0)/4) {
+			return 0;
+		}
+		
+		//don't worry about hp for now (+1 is just so we don't have divide by 0 errors)
+		//okay, for some reason, full 100 rubble ahead is only 25 in the rubble variable. Who knows
+		if(rubble<10||((allyCount*20)/((allyRubble/10)+1)>=rubble)){
+			return 2;
+		}
+		
+		
+		//else, stick around
+		return 1;
 	}
 }
