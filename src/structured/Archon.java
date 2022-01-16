@@ -5,7 +5,9 @@ public class Archon extends RobotLogic {
 	private int locCommIndex = 0;
 	private int soldiersMade = 0;
 	private int minersMade = 0;
+	private int buildersMade = 0;
 	private int averageArchonDistance = 0;
+	private boolean primaryArchon = false;
 	//0=rotation, 1=reflectionX, 2=reflectionY
 	private boolean[] possibleSymmetries= {true,true,true};
 	private boolean bullShiteryDetected=false;
@@ -52,7 +54,7 @@ public class Archon extends RobotLogic {
 	}
 	
 	private void updateBudgetComm(RobotController rc) throws GameActionException {
-		if (locCommIndex == 0) {
+		if (primaryArchon) {
 			int leadAmount=rc.getTeamLeadAmount(rc.getTeam());
 			if(leadAmount<=65535) {
 				rc.writeSharedArray(LEAD_BUDGET, leadAmount);
@@ -66,7 +68,7 @@ public class Archon extends RobotLogic {
 	}
 	
 	private void commUnderAttack(RobotController rc) throws GameActionException {
-		if (locCommIndex == 0) {
+		if (primaryArchon) {
 			rc.writeSharedArray(UNDER_ATTACK, 0);
 		}
 		int previousValue = rc.readSharedArray(UNDER_ATTACK);
@@ -119,6 +121,8 @@ public class Archon extends RobotLogic {
 				minersMade ++;
 			} else if (type == RobotType.SOLDIER) {
 				soldiersMade ++;
+			} else if (type == RobotType.BUILDER) {
+				buildersMade ++;
 			}
 		}
 	}
@@ -413,7 +417,7 @@ public class Archon extends RobotLogic {
 
 	//Returns true if under cooldown, false if not
 	private void commCooldown(RobotController rc) throws GameActionException{
-		if (locCommIndex == 0) {
+		if (primaryArchon) {
 			rc.writeSharedArray(ARCHON_COOLDOWN, 0);
 		}
 		int previousValue = rc.readSharedArray(ARCHON_COOLDOWN);
@@ -429,20 +433,22 @@ public class Archon extends RobotLogic {
 		if (enemyNearby(rc) || (rc.getRoundNum() > super.TRANSITIONROUND && checkBestChooChooOrigin(rc))) {
 			return Math.min(75, rc.readSharedArray(LEAD_BUDGET));
 		}
-
 		//	(total pb - (num under attack*soldier cost))/(num of archons - archons on cooldown)
-		return (rc.readSharedArray(LEAD_BUDGET)-(rc.readSharedArray(UNDER_ATTACK)*75))/(rc.getArchonCount()-rc.readSharedArray(ARCHON_COOLDOWN));
+		return Math.min(75, (rc.readSharedArray(LEAD_BUDGET)-(rc.readSharedArray(UNDER_ATTACK)*75))/(rc.getArchonCount()-rc.readSharedArray(ARCHON_COOLDOWN)));
 	}
 
 	private void updateLeadIncome(RobotController rc) throws GameActionException {
-		if (locCommIndex == 0) {
+		if (primaryArchon) {
 			rc.writeSharedArray(LEAD_INCOME, rc.readSharedArray(MINER_LEAD_COUNTER));
 			rc.writeSharedArray(MINER_LEAD_COUNTER, 0);
 		}
 	}
 
 	private int averageArchonDistance(RobotController rc) throws GameActionException {
-        int totalDist = 0;
+        if (rc.getArchonCount() == 0) {
+			return 0;
+		}
+		int totalDist = 0;
         int numConnections = 0;
         for (int i = 0; i < rc.getArchonCount(); i++) {
             for (int j = i+1; j < rc.getArchonCount(); j++) {
@@ -452,6 +458,17 @@ public class Archon extends RobotLogic {
         }
         return totalDist/numConnections;
 	}
+
+	private boolean primaryArchonCheck(RobotController rc) throws GameActionException {
+		if (rc.readSharedArray(PRIMARY_ARCHON) == locCommIndex-1) {
+			rc.writeSharedArray(PRIMARY_ARCHON, locCommIndex);
+			return false;
+		} else {
+			rc.writeSharedArray(PRIMARY_ARCHON, locCommIndex);
+			return true;
+		}
+	}
+
 	public boolean run(RobotController rc) throws GameActionException{
 		if (rc.getRoundNum() == 1) {
 			updateLocComm(rc);
@@ -459,6 +476,7 @@ public class Archon extends RobotLogic {
 			buildFriendlyArchonArray(rc,friendlyArchonLocs);
 			averageArchonDistance = averageArchonDistance(rc);
 		}
+		primaryArchon = primaryArchonCheck(rc);
 
 		updateLeadIncome(rc);
 		commUnderAttack(rc);
@@ -472,6 +490,11 @@ public class Archon extends RobotLogic {
 		if (enemyNearby(rc) == true) {
 			createRobot(rc, RobotType.SOLDIER);
 		}
+		/*
+		if (rc.getRoundNum() > 100 && rc.readSharedArray(LEAD_BUDGET) > 200*rc.getArchonCount()) {
+			System.out.println("MAKING BUILDER");
+			createRobot(rc, RobotType.BUILDER);
+		}*/
 		
 		if (averageArchonDistance < 40) {
 			if (minersMade < 4 || rc.getRoundNum() > 200 && minersMade <= 10) {
