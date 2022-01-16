@@ -28,6 +28,8 @@ public class Builder extends RobotLogic {
 		
 		//fuck around until it finds an assignment
 		if(assignment==null) {
+			//todo: fix it so the builders go to a good "goalside" defensive position
+			//to look for potential places to build watchtowers
 			super.randomMovement(rc);
 		}else {
 			MapLocation me=rc.getLocation();
@@ -36,21 +38,7 @@ public class Builder extends RobotLogic {
 			if(distance!=1||distance!=2) {
 				if(distance==0) {
 					//if its on top of the assignment, move to the lowest rubble tile
-					int lowest=696969;
-					int index=0;
-					for(int i=0;i<directions.length;++i) {
-						MapLocation adjacent=me.add(directions[i]);
-						if(rc.onTheMap(adjacent)&&rc.senseRobotAtLocation(adjacent)==null) {
-							int rubble=rc.senseRubble(adjacent);
-							if(rubble<lowest) {
-								lowest=rubble;
-								index=i;
-							}
-						}
-					}
-					if(rc.canMove(directions[index])) {
-						rc.move(directions[index]);
-					}
+					super.superGreedy(rc);
 				}else if(distance<=5){
 					//close to assignment, move greedily
 					super.greedy(rc,assignment);
