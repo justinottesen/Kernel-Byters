@@ -23,7 +23,6 @@ public abstract class RobotLogic {
 	public static final int WATCHTOWERS = 17;
 	public static final int MINER_NUMBER_COUNTER = 18;
 	public static final int MINER_NUMBER = 19;
-
 	
 	public static final Direction[] directions = {
             Direction.NORTH,
@@ -488,6 +487,165 @@ public abstract class RobotLogic {
     	int y = commVal % 60;
     	int x = (commVal-y) / 60;
     	return new MapLocation(x, y);
+    }
+    
+    
+    //16 zones per map
+    //returns a number 1-16
+    public int getZone(RobotController rc, MapLocation m) throws GameActionException{
+    	int height=rc.getMapHeight();
+    	int width=rc.getMapWidth();
+    	
+    	//ceiling divide height and width by 4
+    	int zoneHeight=height/4;
+    	if(height%4>0)
+    		zoneHeight++;
+    	int zoneWidth=width/4;
+    	if(width%4>0)
+    		zoneWidth++;
+    	
+    	//floor divide the coordinates of m
+    	int x=m.x/zoneWidth;
+    	int y=m.y/zoneHeight;
+    	
+    	return (x+4*y);
+    }
+    
+    //returns the two corners of a zone (m1, m2)
+    public MapLocation[] getZone(RobotController rc, int zone) throws GameActionException{
+    	int height=rc.getMapHeight();
+    	int width=rc.getMapWidth();
+    	
+    	//ceiling divide height and width by 4
+    	int zoneHeight=height/4;
+    	if(height%4>0)
+    		zoneHeight++;
+    	int zoneWidth=width/4;
+    	if(width%4>0)
+    		zoneWidth++;
+    	
+    	int x=zone%4;
+    	int y=zone/4;
+    	
+    	MapLocation m1=new MapLocation(x*zoneWidth,y*zoneHeight);
+    	
+    	//makes sure m2 isn't off the map
+    	int upperX=(x+1)*zoneWidth-1;
+    	int upperY=(y+1)*zoneHeight-1;
+    	if(upperX>=width)
+    		upperX=width-1;
+    	if(upperY>=height)
+    		upperY=height-1;
+    	MapLocation m2=new MapLocation(upperX,upperY);
+    	MapLocation[] m= {m1,m2};
+    	return m;
+    }
+    
+    public void reportZone(RobotController rc) throws GameActionException{
+    	//maybe make these public class variables?
+    	final int roundMod=2;
+    	final int enemyMinMod=(int)(Math.pow(2,5));
+    	final int leadMinMod=(int)(Math.pow(2,9));
+    	
+    	//for now, just find the minimum number of enemies and the minimum number of lead
+    	//assuming 20x20 will be the smallest map, the highest number of zones a robot can see is 9
+    	int[] zones= {-1,-1,-1,-1,-1,-1,-1,-1,-1};
+    	int[] enemyCount= {0,0,0,0,0,0,0,0,0};
+    	int[] leadCount= {0,0,0,0,0,0,0,0,0};
+    	
+    	//count enemies
+    	RobotInfo[] enemies=rc.senseNearbyRobots(-1,rc.getTeam().opponent());
+    	for(int i=0;i<enemies.length;++i) {
+    		RobotType type=enemies[i].getType();
+			//include watchtowers?
+			if(type==RobotType.SOLDIER||type==RobotType.SAGE) {
+				int zone=getZone(rc,enemies[i].getLocation());
+				int index=-1;
+				//looks for existing counts
+				for(int j=0;j<9;++j) {
+					if(zones[j]==zone) {
+						index=j;
+						break;
+					}
+				}
+				if(index==-1) {//no existing count for the zone, make a new one
+					for(int j=0;j<9;++j) {
+						if(zones[j]==-1) {
+							index=j;
+							zones[j]=zone;
+							break;
+						}
+					}
+				}
+				//caps at 15
+				if(enemyCount[index]<15)
+					enemyCount[index]++;
+			}
+    	}
+    	
+    	//count lead (even the ones that have 1 lead)
+    	MapLocation[] lead=rc.senseNearbyLocationsWithLead();
+    	for(int i=0;i<lead.length;++i) {
+    		int zone=getZone(rc,lead[i]);
+			int index=-1;
+			//looks for existing counts
+			for(int j=0;j<9;++j) {
+				if(zones[j]==zone) {
+					index=j;
+					break;
+				}
+			}
+			if(index==-1) {//no existing count for the zone, make a new one
+				for(int j=0;j<9;++j) {
+					if(zones[j]==-1) {
+						index=j;
+						zones[j]=zone;
+						break;
+					}
+				}
+			}
+			//caps at 15
+			if(leadCount[index]<15)
+				leadCount[index]++;
+    	}
+
+		//0 for even, 1 for odd
+		int turn=rc.getRoundNum()%4/2;
+		
+    	//now communicate the counts
+    	for(int i=0;i<9;++i) {
+    		//-1 means it found nothing in the zone
+    		if(zones[i]!=-1) {
+	    		//gets the info already in comm
+	    		int commIndex=53-zones[i];
+	    		int comm=rc.readSharedArray(commIndex);
+	    		int commRound=comm%roundMod;
+	    		int commMinEnemy=(comm%enemyMinMod)/roundMod;
+	    		int commMinLead=(comm%leadMinMod)/enemyMinMod;
+	    		//make sure its counts are higher than the existing ones
+	    		//or that the counts are from the previous turn
+	    		
+	    		
+	    		if(turn!=commRound) {//new round
+	    			//change everything if the data is outdated
+	    			comm=turn+roundMod*enemyCount[i]+enemyMinMod*leadCount[i];
+	    			rc.setIndicatorString("new: "+comm);
+	    		}else {//not new round
+	    			//only change the data that is greater
+	    			if(enemyCount[i]>commMinEnemy) {//more enemies than in the comm
+	    				comm+=(enemyCount[i]-commMinEnemy)*roundMod;
+	    			}
+	    			if(leadCount[i]>commMinLead) {//more lead than in the comm
+	    				comm+=(leadCount[i]-commMinLead)*enemyMinMod;
+	    			}
+	    			rc.setIndicatorString("not new: "+comm+", index: "+commIndex);
+	    		}
+	    		
+	    		//todo: don't need to set comm if nothing is changed
+	    		rc.writeSharedArray(commIndex,comm);
+    		}
+    		
+    	}
     }
 
 }
