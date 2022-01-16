@@ -19,6 +19,8 @@ public abstract class RobotLogic {
 	public static final int LEAD_INCOME = 13;
 	public static final int MINER_LEAD_COUNTER = 14;
 	public static final int ENEMY_SOLDIER_SEEN = 15;
+	public static final int PRIMARY_ARCHON = 16;
+	public static final int WATCHTOWERS = 17;
 	
 	public static final Direction[] directions = {
             Direction.NORTH,
