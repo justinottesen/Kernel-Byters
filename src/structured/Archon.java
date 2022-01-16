@@ -2,13 +2,14 @@ package structured;
 import battlecode.common.*;
 public class Archon extends RobotLogic {
 	private int leadBudget = 0;
-	private int locCommIndex = 0;
+	private int locCommIndex = -1;
 	private int numMiners = 0;
 	private int soldiersMade = 0;
 	private int minersMade = 0;
 	private int buildersMade = 0;
 	private int averageArchonDistance = 0;
 	private boolean primaryArchon = false;
+	private int targetIndex = 0;
 	//0=rotation, 1=reflectionX, 2=reflectionY
 	private boolean[] possibleSymmetries= {true,true,true};
 	private boolean bullShiteryDetected=false;
@@ -48,10 +49,17 @@ public class Archon extends RobotLogic {
 	}
 	
 	private void updateLocComm(RobotController rc) throws GameActionException{
-		while (rc.readSharedArray(locCommIndex) != 0) {
-			locCommIndex++;
+		if (locCommIndex == -1) {
+			locCommIndex = 0;
+			while (rc.readSharedArray(locCommIndex) != 0) {
+				locCommIndex++;
+			}
 		}
-		rc.writeSharedArray(locCommIndex,locToComm(rc.getLocation()));
+		if (rc.getMode() == RobotMode.TURRET) {
+			rc.writeSharedArray(locCommIndex,locToComm(rc.getLocation()));
+		} else {
+			rc.writeSharedArray(locCommIndex,MAXIMUM_COMM_VALUE);
+		}
 	}
 	
 	private void updateBudgetComm(RobotController rc) throws GameActionException {
@@ -68,43 +76,15 @@ public class Archon extends RobotLogic {
 		}
 	}
 	
-	private void commUnderAttack(RobotController rc) throws GameActionException {
-		if (primaryArchon) {
-			rc.writeSharedArray(UNDER_ATTACK, 0);
-		}
-		int previousValue = rc.readSharedArray(UNDER_ATTACK);
-		if (enemyNearby(rc)) {
-			rc.writeSharedArray(UNDER_ATTACK, previousValue + 1);
-		}
-
-		/* Uses math to designate which archon under attack, not really necessary
-
-		int prevValue = rc.readSharedArray(5);
-		if ((prevValue/Math.pow(10, locCommIndex))%2 == 0) { //NOT UNDER ATTACK LAST TURN
-			if (enemyNearby(rc) == true) {
-				rc.writeSharedArray(5, prevValue + (int)Math.pow(10, locCommIndex));
-			}
-		}
-		if ((prevValue/Math.pow(10, locCommIndex))%2 == 1) { //UNDER ATTACK LAST TURN
-			if (enemyNearby(rc) == false) {
-				rc.writeSharedArray(5, prevValue - (int)Math.pow(10, locCommIndex));
-			}
-		}
-		*/
-	}
 	
 	private boolean enemyNearby(RobotController rc) throws GameActionException {
 		Team opponent = rc.getTeam().opponent();
-        RobotInfo[] enemies = rc.senseNearbyRobots();
-        for(int i=0;i<enemies.length;++i) {
-        	if (enemies[i].getTeam() == rc.getTeam().opponent()) {
-        		return true;
-        	}
-        }
+        RobotInfo[] enemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
+        if (enemies.length > 0) return true;
         return false;
 	}
 	
-	private void createRobot(RobotController rc, RobotType type) throws GameActionException {
+	private boolean createRobot(RobotController rc, RobotType type) throws GameActionException {
 		Direction goalDir = directionToCenter(rc);
 		if (type == RobotType.MINER) {
 			if (rc.senseNearbyLocationsWithLead().length > 0) {
@@ -125,7 +105,9 @@ public class Archon extends RobotLogic {
 			} else if (type == RobotType.BUILDER) {
 				buildersMade ++;
 			}
+			return true;
 		}
+		return false;
 	}
 	
 	//returns the maplocation on the other half of the map
@@ -245,6 +227,7 @@ public class Archon extends RobotLogic {
 		MapLocation destination = commToLoc(rc.readSharedArray(TRAIN_DESTINATION));
 		int min_distance = 9999;
 		for (int i = 0; i < rc.getArchonCount(); i++) {
+			if (rc.readSharedArray(i) == MAXIMUM_COMM_VALUE) continue;
 			min_distance = Math.min(min_distance, destination.distanceSquaredTo(commToLoc(rc.readSharedArray(i))));
 		}
 		return (min_distance == destination.distanceSquaredTo(rc.getLocation()));
@@ -306,7 +289,7 @@ public class Archon extends RobotLogic {
 			if(chosenSymmetry>=0&&chosenSymmetry<3) {
 				//System.out.println("gotcha bitch! "+chosenSymmetry);
 				if(!bullShiteryDetected)
-					possibleSymmetries[chosenSymmetry]=false;
+				possibleSymmetries[chosenSymmetry]=false;
 				//add to the list of not there
 				addNotThere(commToLoc(rc.readSharedArray(10)));
 				rc.writeSharedArray(TRAIN_CORRECTION,0);
@@ -343,12 +326,12 @@ public class Archon extends RobotLogic {
 	//returns true if the contents of the two arrays are the same, false if they're not
 	private boolean equalsArray(MapLocation[] array1,MapLocation[] array2) {
 		if(array1.length!=array2.length)
-			return false;
+		return false;
 		for(int i=0;i<array1.length;++i) {
 			//System.out.println("before: "+array1[i]+", after: "+array2[i]);
 			//if both are null or both are the same
 			if(array1[i]==null&&array2[i]==null)
-				continue;
+			continue;
 			if(((array1[i]==null)!=(array2[i]==null))||(array1[i].x!=array2[i].x||array1[i].y!=array2[i].y)) {
 				if(array2[i]==null) {
 					//add to notThere
@@ -361,7 +344,7 @@ public class Archon extends RobotLogic {
 	}
 	private boolean shouldReevaluateSymmetry() {
 		if(bullShiteryDetected)
-			return false;
+		return false;
 		int numRemaining=0;
 		for(int i=0;i<3;++i) {
 			if(possibleSymmetries[i]) {
@@ -411,7 +394,7 @@ public class Archon extends RobotLogic {
 					speedIndex=total/numTilesEvaluated;
 					minerLocs[index]=rubbleLoc;
 				}
-				
+
 			}
 		}
 	}
@@ -446,18 +429,18 @@ public class Archon extends RobotLogic {
 	}
 
 	private int averageArchonDistance(RobotController rc) throws GameActionException {
-        if (rc.getArchonCount() == 1) {
+		if (rc.getArchonCount() == 1) {
 			return 0;
 		}
 		int totalDist = 0;
-        int numConnections = 0;
-        for (int i = 0; i < rc.getArchonCount(); i++) {
-            for (int j = i+1; j < rc.getArchonCount(); j++) {
-                totalDist += commToLoc(rc.readSharedArray(i)).distanceSquaredTo(commToLoc(rc.readSharedArray(j)));
-                numConnections += 1;
-            }
-        }
-        return totalDist/numConnections;
+		int numConnections = 0;
+		for (int i = 0; i < rc.getArchonCount(); i++) {
+			for (int j = i+1; j < rc.getArchonCount(); j++) {
+				totalDist += commToLoc(rc.readSharedArray(i)).distanceSquaredTo(commToLoc(rc.readSharedArray(j)));
+				numConnections += 1;
+			}
+		}
+		return totalDist/numConnections;
 	}
 
 	private boolean primaryArchonCheck(RobotController rc) throws GameActionException {
@@ -477,18 +460,134 @@ public class Archon extends RobotLogic {
 		}
 	}
 
+	private void commUnderAttack(RobotController rc) throws GameActionException {
+		int prevValue = rc.readSharedArray(5);
+		if ((prevValue/Math.pow(10, locCommIndex))%2 == 0) { //NOT UNDER ATTACK LAST TURN
+			if (enemyNearby(rc) == true) {
+				rc.writeSharedArray(5, prevValue + (int)Math.pow(10, locCommIndex));
+			}
+		}
+		if ((prevValue/Math.pow(10, locCommIndex))%2 == 1) { //UNDER ATTACK LAST TURN
+			if (enemyNearby(rc) == false) {
+				rc.writeSharedArray(5, prevValue - (int)Math.pow(10, locCommIndex));
+			}
+		}
+	}
+
+	private int readUnderAttack(RobotController rc) throws GameActionException {
+		int num = 0;
+		int prevValue = rc.readSharedArray(UNDER_ATTACK);
+		for (int i = 3; i >= 0; i--) {
+			int nextValue = prevValue % (int)Math.pow(10, i);
+			if (nextValue != prevValue) num ++;
+			prevValue = nextValue;
+		}
+		return num;
+	}
+
+	private void robotCreation(RobotController rc) throws GameActionException {
+		if (rc.getTeamLeadAmount(rc.getTeam()) < 40) return;
+		boolean robotMade = false;
+		if (rc.getRoundNum() < 6) {
+			robotMade = createRobot(rc, RobotType.MINER);
+		} else if (enemyNearby(rc) == true) {
+			robotMade = createRobot(rc, RobotType.SOLDIER);
+		}
+		int myBudget = rc.getTeamLeadAmount(rc.getTeam()) - 75*readUnderAttack(rc);
+		if (myBudget < 40) return;
+		if (minersMade < 3) {
+			robotMade = createRobot(rc, RobotType.MINER);
+		}
+		if (checkBestChooChooOrigin(rc) && myBudget >= 75) {
+			if (rc.getRoundNum()%4 == 0) {
+				robotMade = createRobot(rc, RobotType.MINER);
+			} else {
+				robotMade = createRobot(rc, RobotType.SOLDIER);
+			}
+		} else {
+			if (primaryArchon && buildersMade == 0 && rc.getRoundNum() > 10) {
+				boolean readyForBuilder = true;
+				for (int i = 0; i < rc.getArchonCount(); i++) {
+					if (rc.readSharedArray(i) == MAXIMUM_COMM_VALUE) {
+						readyForBuilder = false;
+						break;
+					}
+				}
+				if (readyForBuilder) {
+					robotMade = createRobot(rc, RobotType.BUILDER);
+				}
+			}
+		}
+		myBudget -= 75;
+		if (robotMade || myBudget < 40) return;
+		createRobot(rc, RobotType.MINER);
+	}
+	
+	private int distanceToClosestCorner(RobotController rc, MapLocation loc) throws GameActionException {
+		/*		1	2	<- Corner Numbers
+				3	4
+		*/
+		int cornerNum = 1;
+		if (loc.x >= rc.getMapWidth()/2) {
+			cornerNum += 1;
+		}
+		if (loc.y < rc.getMapHeight()/2) {
+			cornerNum += 2;
+		}
+		if (cornerNum == 1) {
+			return loc.distanceSquaredTo(new MapLocation(0, rc.getMapHeight()-1));
+		}
+		if (cornerNum == 2) {
+			return loc.distanceSquaredTo(new MapLocation(rc.getMapWidth()-1, rc.getMapHeight()-1));
+		}
+		if (cornerNum == 3) {
+			return loc.distanceSquaredTo(new MapLocation(0, 0));
+		}
+		return loc.distanceSquaredTo(new MapLocation(rc.getMapWidth()-1, 0));
+	}
+
+	private int getTargetIndex(RobotController rc) throws GameActionException {
+		int minDistIndex = -1;
+		int minDistance = 9999;
+		int dist = 0;
+		for (int i = 0; i < rc.getArchonCount(); i++) {
+			dist = distanceToClosestCorner(rc, commToLoc(rc.readSharedArray(i)));
+			if (dist < minDistance) {
+				minDistIndex = i;
+				minDistance = dist;
+			}
+		}
+		return minDistIndex;
+	}
+
+	private MapLocation lowestNearbyRubbleLocation(RobotController rc) throws GameActionException {
+		MapLocation[] locs = rc.getAllLocationsWithinRadiusSquared(rc.getLocation(), 5);
+		MapLocation bestLoc = rc.getLocation();
+		int lowestRubble = rc.senseRubble(bestLoc);
+		boolean tooClose = false;
+		for (int i = 0; i < locs.length; i++) {
+			if (rc.senseRubble(locs[i]) < lowestRubble) {
+				bestLoc = locs[i];
+				lowestRubble = rc.senseRubble(locs[i]);
+			}
+		}
+		return bestLoc;
+	}
+
 	public boolean run(RobotController rc) throws GameActionException{
 		if (rc.getRoundNum() == 1) {
 			updateLocComm(rc);
 		} else if(rc.getRoundNum()==2) {
 			buildFriendlyArchonArray(rc,friendlyArchonLocs);
 			averageArchonDistance = averageArchonDistance(rc);
+			targetIndex = getTargetIndex(rc);
 		}
 		primaryArchon = primaryArchonCheck(rc);
 
 		commNumMiners(rc);
 		updateLeadIncome(rc);
 		commUnderAttack(rc);
+		readUnderAttack(rc);
 		commCooldown(rc);
 		updateBudgetComm(rc);
 		leadBudget = calculateMyBudget(rc);
@@ -497,20 +596,26 @@ public class Archon extends RobotLogic {
 
 		calculateChooChooDestination(rc);
 		
-		if (enemyNearby(rc) == true) {
-			createRobot(rc, RobotType.SOLDIER);
+		
+		if (rc.getMode() == RobotMode.TURRET) {
+			if (rc.readSharedArray(LEAD_BUDGET) < 20 && targetIndex != locCommIndex && rc.getLocation().distanceSquaredTo(commToLoc(rc.readSharedArray(targetIndex))) > 30 && rc.getRoundNum() >= 3) {
+				if (rc.canTransform()) {
+					rc.transform();
+					updateLocComm(rc);
+				}
+			}
+			robotCreation(rc);
+		} else if (rc.getLocation().distanceSquaredTo(commToLoc(rc.readSharedArray(targetIndex))) > 20) {
+			pathFind(rc, commToLoc(rc.readSharedArray(targetIndex)));
+		} else {
+			MapLocation bestLoc = lowestNearbyRubbleLocation(rc);
+			pathFind(rc, bestLoc);
+			if (bestLoc == rc.getLocation() && rc.canTransform()) {
+				rc.transform();
+				updateLocComm(rc);
+			}
 		}
 		/*
-		if (numMiners < 2*rc.getArchonCount() && leadBudget >= 50 && rc.getRoundNum() > 500) {
-			createRobot(rc, RobotType.MINER);
-		}*/
-
-		/*
-		if (rc.getRoundNum() > 100 && rc.readSharedArray(LEAD_BUDGET) > 200*rc.getArchonCount()) {
-			System.out.println("MAKING BUILDER");
-			createRobot(rc, RobotType.BUILDER);
-		}*/
-		
 		if (averageArchonDistance <= 80) {
 			if (minersMade < 4 || rc.readSharedArray(ENEMY_SOLDIER_SEEN) == 0 && minersMade < 6) {
 				createRobot(rc, RobotType.MINER);
@@ -547,7 +652,7 @@ public class Archon extends RobotLogic {
 					createRobot(rc, RobotType.SOLDIER);
 				}
 			}
-		}
+		} */
 
 
 		/*if (rc.getRoundNum() < 10 && leadBudget > 50) {
