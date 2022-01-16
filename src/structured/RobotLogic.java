@@ -2,6 +2,7 @@ package structured;
 import battlecode.common.*;
 import java.util.Random;
 public abstract class RobotLogic {
+	public static final int MAXIMUM_COMM_VALUE = 65535;
 	//COMMUNICATION ARRAY VALUES
 	public static final int ARCHON_1_LOC = 0;
 	public static final int ARCHON_2_LOC = 1;
@@ -35,7 +36,7 @@ public abstract class RobotLogic {
             Direction.NORTHWEST,
     };
 	public static Random rng = new Random(6147);
-	public static final int TRANSITIONROUND = 50;
+	public static final int TRANSITIONROUND = 100;
 	abstract boolean run(RobotController rc) throws GameActionException;
 
 	public MapLocation getMapCenter(RobotController rc) throws GameActionException {
