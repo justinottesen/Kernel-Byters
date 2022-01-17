@@ -35,7 +35,9 @@ public class Soldier extends RobotLogic {
 						super.pathFind(rc,assignment);
 					}
 				}else {
-					super.randomMovement(rc);
+					//super.randomMovement(rc);
+					MapLocation middle=new MapLocation(rc.getWidth()/2,rc.getHeight()/2);
+					super.pathFind(rc,middle);
 				}
 				
 				//okay I'm mad, why didn't we make the bots attack after moving too
@@ -46,6 +48,8 @@ public class Soldier extends RobotLogic {
 			commNoEnemyArchon(rc,assignment);
 		//doesn't need to be in train mode to report enemy archons!
     	commEnemyArchonLoc(rc);
+    	if(rc.getRoundNum()%2==0)
+    		reportZone(rc);
         return true;
 	}
 	//returns true if it sees attacking units
@@ -220,6 +224,8 @@ public class Soldier extends RobotLogic {
 	//returns 2 if the soldier should advance, 1 if it should stay put, 0 if it should retreat
 	private int advance(RobotController rc) throws GameActionException{
 		MapLocation me=rc.getLocation();
+		if(assignment.distanceSquaredTo(me)==0)
+			return 1;
 		//take into account unit health, terrain in front, number of allies, and number of enemies
 		int health=rc.getHealth();
 		RobotInfo[] allies=rc.senseNearbyRobots(20,rc.getTeam());
