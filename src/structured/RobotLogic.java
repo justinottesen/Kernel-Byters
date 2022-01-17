@@ -2,6 +2,7 @@ package structured;
 import battlecode.common.*;
 import java.util.Random;
 public abstract class RobotLogic {
+	public static final int MAXIMUM_COMM_VALUE=65535;
 	//COMMUNICATION ARRAY VALUES
 	public static final int ARCHON_1_LOC = 0;
 	public static final int ARCHON_2_LOC = 1;
@@ -23,6 +24,10 @@ public abstract class RobotLogic {
 	public static final int WATCHTOWERS = 17;
 	public static final int MINER_NUMBER_COUNTER = 18;
 	public static final int MINER_NUMBER = 19;
+	public static final int roundMod=2;
+	public static final int enemyMinMod=(int)(Math.pow(2,5));
+	public static final int leadMinMod=(int)(Math.pow(2,9));
+	public static final int allyMinerMod=(int)(Math.pow(2,12));
 	
 	public static final Direction[] directions = {
             Direction.NORTH,
@@ -35,7 +40,7 @@ public abstract class RobotLogic {
             Direction.NORTHWEST,
     };
 	public static Random rng = new Random(6147);
-	public static final int TRANSITIONROUND = 50;
+	public static final int TRANSITIONROUND = 100;
 	abstract boolean run(RobotController rc) throws GameActionException;
 
 	public MapLocation getMapCenter(RobotController rc) throws GameActionException {
@@ -130,6 +135,7 @@ public abstract class RobotLogic {
 	}
 	
 	public void commNoEnemyArchon(RobotController rc, MapLocation assignment) throws GameActionException {
+		final int twoToTheTwelth=(int)Math.pow(2,12);
 		if (rc.getLocation().distanceSquaredTo(assignment) > 12) {
 			return;
 		}
@@ -438,38 +444,31 @@ public abstract class RobotLogic {
 		}
 	}
     public void chooChooIgnore(RobotController rc, MapLocation assignment) throws GameActionException{
-		rc.setIndicatorString("train to "+assignment);
+		//rc.setIndicatorString("train to "+assignment);
     	MapLocation me = rc.getLocation();
 		MapLocation[] gold=rc.senseNearbyLocationsWithGold(20);
 		MapLocation[] lead=rc.senseNearbyLocationsWithLead(20,2);
 		MapLocation ore=null;
 		if(gold.length!=0) {
 			ore=gold[0];
-		}else if(lead.length>20) {//special case for maptestsmall (and maybe other similar situations)
-			//there be a lot of lead, don't get distracted
-			for(int i=0;i<lead.length;++i) {
-				//extra case: make sure lead is in the general direction of the destination
-				Direction dirToAssignment=me.directionTo(assignment);
-				Direction dirToLead=me.directionTo(lead[i]);
-				if(dirToAssignment.getDeltaX()==dirToLead.getDeltaX()&&dirToAssignment.getDeltaY()==dirToLead.getDeltaY()) {
-					ore=lead[i];
-					break;
-				}
-			}
-		}else if(lead.length!=0){
+		}else{
 			//rc.setIndicatorString("lead length: "+lead.length);
 			//I know this seems like a lot of loops, but it really isn't that bad
 			//lead[] is guaranteed to be smaller than 20 and adjacentToLead is guaranteed to be less than 10
 			for(int i=0;i<lead.length;++i) {
-				//ignore the lead if its adjacent to a miner
-				RobotInfo[] adjacentToLead=rc.senseNearbyRobots(lead[i],2,rc.getTeam());
-				boolean containsMiner=false;
-				for(int j=0;j<adjacentToLead.length&&!containsMiner;++j) {
-					containsMiner=(adjacentToLead[j].getType()==RobotType.MINER);
-				}
-				if(!containsMiner) {
-					ore=lead[i];
-					break;
+				Direction dirToAssignment=me.directionTo(assignment);
+				Direction dirToLead=me.directionTo(lead[i]);
+				if(dirToAssignment.getDeltaX()==dirToLead.getDeltaX()&&dirToAssignment.getDeltaY()==dirToLead.getDeltaY()) {	
+					//ignore the lead if its adjacent to a miner
+					RobotInfo[] adjacentToLead=rc.senseNearbyRobots(lead[i],2,rc.getTeam());
+					boolean containsMiner=false;
+					for(int j=0;j<adjacentToLead.length&&!containsMiner;++j) {
+						containsMiner=(adjacentToLead[j].getType()==RobotType.MINER);
+					}
+					if(!containsMiner) {
+						ore=lead[i];
+						break;
+					}
 				}
 			}
 		}
@@ -522,7 +521,7 @@ public abstract class RobotLogic {
     	return (x+4*y);
     }
     
-    //returns the two corners of a zone (m1, m2)
+    //returns the four corners of a zone (m1, m2, m3, m4)
     public MapLocation[] getZone(RobotController rc, int zone) throws GameActionException{
     	int height=rc.getMapHeight();
     	int width=rc.getMapWidth();
@@ -548,16 +547,40 @@ public abstract class RobotLogic {
     	if(upperY>=height)
     		upperY=height-1;
     	MapLocation m2=new MapLocation(upperX,upperY);
-    	MapLocation[] m= {m1,m2};
+    	MapLocation m3=new MapLocation(upperX, y*zoneHeight);
+    	MapLocation m4=new MapLocation(x*zoneWidth,upperY);
+    	
+    	MapLocation[] m= {m1,m2,m3,m4};
     	return m;
     }
-    
+    //returns the center of a zone
+    public MapLocation getZoneCenter(RobotController rc, int zone) throws GameActionException{
+    	int height=rc.getMapHeight();
+    	int width=rc.getMapWidth();
+    	
+    	//ceiling divide height and width by 4
+    	int zoneHeight=height/4;
+    	if(height%4>0)
+    		zoneHeight++;
+    	int zoneWidth=width/4;
+    	if(width%4>0)
+    		zoneWidth++;
+    	
+    	int x=zone%4;
+    	int y=zone/4;
+    	
+    	//makes sure m2 isn't off the map
+    	int upperX=x*zoneWidth+zoneWidth/2;
+    	int upperY=y*zoneHeight+zoneWidth/2;
+    	if(upperX>=width)
+    		upperX=width-1;
+    	if(upperY>=height)
+    		upperY=height-1;
+    	return new MapLocation(upperX,upperY);
+    }
     public void reportZone(RobotController rc) throws GameActionException{
     	//maybe make these public class variables?
-    	final int roundMod=2;
-    	final int enemyMinMod=(int)(Math.pow(2,5));
-    	final int leadMinMod=(int)(Math.pow(2,9));
-    	final int allyMinerMod=(int)(Math.pow(2,12));
+    	
     	//final int allySoldierMod=(int)(Math.pow(2,16));
     	
     	//for now, just find the minimum number of enemies and the minimum number of lead
