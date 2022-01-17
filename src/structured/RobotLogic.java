@@ -139,6 +139,17 @@ public abstract class RobotLogic {
 				return;
 			}
 		}
+		
+		//make sure if assignment alligns with a known enemy archon location, 
+		//reset the enemy archon location to null
+		for(int i=6;i<10;++i) {
+			int archonComm=rc.readSharedArray(i)%twoToTheTwelth;
+			if(rc.readSharedArray(i)!=0) {
+				if(assignment.distanceSquaredTo(commToLoc(archonComm))<5) {
+					rc.writeSharedArray(i,0);
+				}
+			}
+		}
 		rc.writeSharedArray(11, 1);
 	}
 	public void superGreedy(RobotController rc) throws GameActionException{
