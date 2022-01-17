@@ -2,7 +2,6 @@ package structured;
 import battlecode.common.*;
 import java.util.Random;
 public abstract class RobotLogic {
-	public static final int MAXIMUM_COMM_VALUE = 65535;
 	//COMMUNICATION ARRAY VALUES
 	public static final int ARCHON_1_LOC = 0;
 	public static final int ARCHON_2_LOC = 1;
@@ -36,7 +35,7 @@ public abstract class RobotLogic {
             Direction.NORTHWEST,
     };
 	public static Random rng = new Random(6147);
-	public static final int TRANSITIONROUND = 100;
+	public static final int TRANSITIONROUND = 50;
 	abstract boolean run(RobotController rc) throws GameActionException;
 
 	public MapLocation getMapCenter(RobotController rc) throws GameActionException {
@@ -547,6 +546,8 @@ public abstract class RobotLogic {
     	final int roundMod=2;
     	final int enemyMinMod=(int)(Math.pow(2,5));
     	final int leadMinMod=(int)(Math.pow(2,9));
+    	final int allyMinerMod=(int)(Math.pow(2,12));
+    	//final int allySoldierMod=(int)(Math.pow(2,16));
     	
     	//for now, just find the minimum number of enemies and the minimum number of lead
     	//assuming 20x20 will be the smallest map, the highest number of zones a robot can see is 9
@@ -623,6 +624,8 @@ public abstract class RobotLogic {
 	    		int commRound=comm%roundMod;
 	    		int commMinEnemy=(comm%enemyMinMod)/roundMod;
 	    		int commMinLead=(comm%leadMinMod)/enemyMinMod;
+	    		int commNumMiners=(comm%allyMinerMod)/leadMinMod;
+	    		int commNumSoldiers=comm/allyMinerMod;
 	    		//make sure its counts are higher than the existing ones
 	    		//or that the counts are from the previous turn
 	    		
@@ -630,7 +633,7 @@ public abstract class RobotLogic {
 	    		if(turn!=commRound) {//new round
 	    			//change everything if the data is outdated
 	    			comm=turn+roundMod*enemyCount[i]+enemyMinMod*leadCount[i];
-	    			rc.setIndicatorString("new: "+comm);
+	    			//rc.setIndicatorString("new: "+comm);
 	    		}else {//not new round
 	    			//only change the data that is greater
 	    			if(enemyCount[i]>commMinEnemy) {//more enemies than in the comm
@@ -639,9 +642,17 @@ public abstract class RobotLogic {
 	    			if(leadCount[i]>commMinLead) {//more lead than in the comm
 	    				comm+=(leadCount[i]-commMinLead)*enemyMinMod;
 	    			}
-	    			rc.setIndicatorString("not new: "+comm+", index: "+commIndex);
+	    			//rc.setIndicatorString("not new: "+comm+", index: "+commIndex);
 	    		}
 	    		
+	    		
+	    		if(commNumMiners<7&&rc.getType()==RobotType.MINER) {
+    				comm+=leadMinMod;
+    			}else if(commNumSoldiers<15&&rc.getType()==RobotType.SOLDIER) {//add other attack units?
+    				comm+=allyMinerMod;
+    			}
+	    		if(comm>65535)
+	    			rc.setIndicatorString("comm: "+comm+" zone: "+getZone(rc,zones[i])[0]);
 	    		//todo: don't need to set comm if nothing is changed
 	    		rc.writeSharedArray(commIndex,comm);
     		}
