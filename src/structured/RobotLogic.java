@@ -458,7 +458,7 @@ public abstract class RobotLogic {
 			for(int i=0;i<lead.length;++i) {
 				Direction dirToAssignment=me.directionTo(assignment);
 				Direction dirToLead=me.directionTo(lead[i]);
-				if(dirToAssignment.getDeltaX()==dirToLead.getDeltaX()&&dirToAssignment.getDeltaY()==dirToLead.getDeltaY()) {	
+				//if(dirToAssignment.getDeltaX()==dirToLead.getDeltaX()&&dirToAssignment.getDeltaY()==dirToLead.getDeltaY()) {	
 					//ignore the lead if its adjacent to a miner
 					RobotInfo[] adjacentToLead=rc.senseNearbyRobots(lead[i],2,rc.getTeam());
 					boolean containsMiner=false;
@@ -469,7 +469,7 @@ public abstract class RobotLogic {
 						ore=lead[i];
 						break;
 					}
-				}
+				//}
 			}
 		}
 		//move towards the assigned location m
