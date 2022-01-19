@@ -15,7 +15,7 @@ public class Miner extends RobotLogic {
 			//only reevaluates assigned zone if the miner has completely scouted its current zone
 			//and it is disatisfied with its current zone
 			//rc.setIndicatorString("c1: "+(numCornersNotSeen()==0)+", c2: "+(!zoneGood(rc,getZone(rc,rc.getLocation()))));
-			if(zoneCorners.length==1||numCornersNotSeen()==0&&!zoneGood(rc,getZone(rc,rc.getLocation()))) {
+			if(zoneCorners.length==1||numCornersNotSeen()<=1&&!zoneGood(rc,getZone(rc,rc.getLocation()))) {
 				processZoneInfo(rc);
 			}
 		}
@@ -93,7 +93,9 @@ public class Miner extends RobotLogic {
 	//evaluates destination based on the zoneInfo
 	private void processZoneInfo(RobotController rc) throws GameActionException{
 		//starting order favors middle zones
-		int[] indecies= {8,7,9,6,10,5,11,4,12,3,13,2,14,1,15,0};
+		//int[] indecies= {8,7,9,6,10,5,11,4,12,3,13,2,14,1,15,0};
+		//new starting order favors corners
+		int[] indecies= {0,15,3,11,8,7,9,6,10,5,4,12,13,2,14,1};
 		//shuffles the indecies to make the order it checks the zones in random
 		shuffle(rc,indecies);
 		
@@ -112,7 +114,7 @@ public class Miner extends RobotLogic {
 	private void shuffle(RobotController rc,int[] indecies) throws GameActionException{
 		Random random=new Random(rc.getID()/rc.getRoundNum());
 		//can shuffle less for less bytecode
-		for(int i=0;i<10;++i) {
+		for(int i=0;i<15;++i) {
 			int index1=random.nextInt(16);
 			int index2=random.nextInt(16);
 			//probably more bytecode efficient to leave out the if statement
