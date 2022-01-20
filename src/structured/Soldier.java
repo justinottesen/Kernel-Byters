@@ -1,8 +1,10 @@
 package structured;
 import battlecode.common.*;
+import java.util.Random;
 public class Soldier extends RobotLogic {
-	private static int farFromHome=0;
-	private static MapLocation assignment=null;
+	private int farFromHome=0;
+	private MapLocation assignment=null;
+	private int zoneAssignment=-1;
 	public boolean run(RobotController rc) throws GameActionException{
 		RobotInfo target=makeLikeTheFireNation(rc);
 		distanceToNearestArchon(rc);
@@ -15,28 +17,23 @@ public class Soldier extends RobotLogic {
 				//if it sees threat, micro
 				microThatBitch(rc,target);
 			}else { 
-				assignment=super.allAboard(rc);
-				//mayber remove first condition?
-				if(rc.getRoundNum()>=super.TRANSITIONROUND&&assignment!=null) {
-					//todo: look for enemies outside of attack radius and decide whether to engage
-					//also make sure its not about to run into a bunch of rubble
-					int decision=advance(rc);
-					//0 = retreat, 1 = stay put, 2 = advance
-					if(decision==0){
-						//retreating
-						assignment=getNearestArchon(rc);
-						super.pathFind(rc,assignment);
-					}else if(decision==1){
-						//stay put and defend/wait for reinforcements
-						super.superGreedy(rc);
-						//move to the lowest-rubble adjacent tile just in case
-					}else {
-						//if it doesn't see a threat, move normally
-						super.pathFind(rc,assignment);
+				//first set assignment
+				if(rc.getRoundNum()%2==1) {//only for "read" rounds
+					//reevaluates if it doesn't have an assignment or if its not currently in combat (or expecting combat)
+					if(zoneAssignment==-1) {
+						rc.setIndicatorString("new soldier");
+						//sets zone as if it is dissatisfied with its current assignment
+						setZone(rc,false);
+					}else if(!zoneBetter(rc,53-zoneAssignment)) {//hopefully this doesn't take up too much bytecode
+						setZone(rc,zoneGood(rc,53-zoneAssignment));
+						rc.setIndicatorString("looked for better zones");
 					}
+				}
+				if(assignment!=null) {
+					super.pathFind(rc,assignment);
 				}else {
 					//super.randomMovement(rc);
-					MapLocation middle=new MapLocation(rc.getWidth()/2,rc.getHeight()/2);
+					MapLocation middle=new MapLocation(rc.getMapWidth()/2,rc.getMapHeight()/2);
 					super.pathFind(rc,middle);
 				}
 				
@@ -44,15 +41,13 @@ public class Soldier extends RobotLogic {
 				makeLikeTheFireNation(rc);
 			}
 		}
-		if(assignment!=null)
-			commNoEnemyArchon(rc,assignment);
-		//doesn't need to be in train mode to report enemy archons!
     	commEnemyArchonLoc(rc);
     	if(rc.getRoundNum()%2==0)
     		reportZone(rc);
         return true;
 	}
-	//returns true if it sees attacking units
+	//returns the robotinfo if it sees attacking units
+	//todo: still return the robotinfo if it sees a target outside of attack range
 	private RobotInfo makeLikeTheFireNation(RobotController rc) throws GameActionException{
 		RobotInfo waterTribe=null;
 		// Try to attack the waterTribe (enemy robot)
@@ -131,8 +126,6 @@ public class Soldier extends RobotLogic {
         }
         return waterTribe;
 	}
-	//flaw: only micros for stuff it can shoot at (ignores the rest of its vision radius)
-	//another flaw: doesn't explicitly support fellow soldiers
 	private void microThatBitch(RobotController rc,RobotInfo target) throws GameActionException{
 		//only micro if it sees attacking threats
 		RobotType type=target.getType();
@@ -201,20 +194,6 @@ public class Soldier extends RobotLogic {
 		return(farFromHome<21&&rc.getHealth()<rc.getType().getMaxHealth(0));
 	}
 	
-	//follows nearby soldier with high health
-	private boolean supportSoldier(RobotController rc) throws GameActionException{
-		//function only call if low health, 
-		//look for a higher health unit to follow
-		RobotInfo[] allies=rc.senseNearbyRobots(20,rc.getTeam());
-		for(int i=0;i<allies.length;++i) {
-			if((allies[i].getType()==RobotType.SOLDIER)&&(allies[i].getHealth()>RobotType.SOLDIER.getMaxHealth(0)/2)) {
-				super.pathFind(rc,allies[i].getLocation());
-				return true;
-			}
-		}
-		return false;
-	}
-	
 	//for now, return true if hp < 1/3 max health
 	private boolean retreat(RobotController rc) throws GameActionException{
 		return (rc.getHealth()<rc.getType().getMaxHealth(0)/4);
@@ -279,5 +258,82 @@ public class Soldier extends RobotLogic {
 		
 		//else, stick around
 		return 1;
+	}
+
+	private void setZone(RobotController rc,boolean satisfied) throws GameActionException{
+		//starting order favors middle zones
+		int[] indecies= {8,7,9,6,10,5,11,4,12,3,13,2,14,1,15,0};
+		shuffle(rc,indecies);
+		
+		//for now, choose the first suitable zone it comes across (that is better than its current one)
+		for(int i=0;i<15;++i) {
+			//zone better looks for enemies
+			if(zoneBetter(rc,53-indecies[i])) {
+				assignment=super.getZoneCenter(rc,indecies[i]);
+				zoneAssignment=indecies[i];
+				//zoneCorners=super.getZone(rc,indecies[i]);
+				rc.setIndicatorString("better zone: "+indecies[i]);
+				return;
+			}
+		}
+		if(!satisfied) {
+			for(int i=0;i<15;++i) {
+				//zone better looks for enemies
+				if(zoneGood(rc,53-indecies[i])) {
+					assignment=super.getZoneCenter(rc,indecies[i]);
+					zoneAssignment=indecies[i];
+					//zoneCorners=super.getZone(rc,indecies[i]);
+					rc.setIndicatorString("good zone: "+indecies[i]);
+					return;
+				}
+			}
+		}
+	}
+	//shuffles an ordered set of indecies to provide a pseudorandom order
+	private void shuffle(RobotController rc,int[] indecies) throws GameActionException{
+		Random random=new Random(rc.getID()/rc.getRoundNum());
+		//can shuffle less for less bytecode
+		for(int i=0;i<15;++i) {
+			int index1=random.nextInt(16);
+			int index2=random.nextInt(16);
+			//probably more bytecode efficient to leave out the if statement
+			//if(index1!=index2) {
+				//swap
+				int temp=indecies[index1];
+				indecies[index1]=indecies[index2];
+				indecies[index2]=temp;
+			//}
+		}
+			
+	}
+	
+	//returns true if zone has enemies in it
+	private boolean zoneBetter(RobotController rc, int zone) throws GameActionException{
+		int comm=rc.readSharedArray(zone);
+		if(comm!=0) {
+			//make sure these get the final variables from robotlogic
+			int commMinEnemy=(comm%enemyMinMod)/roundMod;
+			if(commMinEnemy>0) {
+				//rc.setIndicatorString("zone "+zone+" enemies: "+commMinEnemy+" comm: "+comm);
+				return true;
+			}
+			
+		}
+		//rc.setIndicatorString("false");
+		return false;
+	}
+	
+	//returns true if the zone is worth defending? (has lead?)
+	private boolean zoneGood(RobotController rc, int zone) throws GameActionException{
+		int comm=rc.readSharedArray(zone);
+		if(comm!=0) {
+			//make sure these get the final variables from robotlogic
+			int commMinLead=(comm%leadMinMod)/enemyMinMod;
+			int commNumMiners=(comm%allyMinerMod)/leadMinMod;
+			if(commMinLead>3||commNumMiners>3)
+				return true;
+			
+		}
+		return false;
 	}
 }
