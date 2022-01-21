@@ -59,6 +59,9 @@ public abstract class RobotLogic {
 	}
 
 	public Direction closestAvailableDir(RobotController rc, Direction goalDir) throws GameActionException {
+		if (goalDir == Direction.CENTER) {
+			goalDir = directionToCenter(rc);
+		}
 		if (rc.canSenseRobotAtLocation(rc.adjacentLocation(goalDir)) == false) {
 			return goalDir;
 		}

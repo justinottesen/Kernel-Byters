@@ -486,6 +486,27 @@ public class Archon extends RobotLogic {
 	}
 
 	private void robotCreation(RobotController rc) throws GameActionException {
+		
+		if (rc.getTeamLeadAmount(rc.getTeam()) < 40) return;
+		if (minersMade <= 2 || rc.getRoundNum() == 1) {
+			createRobot(rc, RobotType.MINER);
+			return;
+		}
+		if (enemyNearby(rc) == true) {
+			createRobot(rc, RobotType.SOLDIER);
+		}
+		for (int i = 53; i > 37; --i) {
+			int comm=rc.readSharedArray(i);
+			if (comm == 0) continue;
+			int commMinEnemy=(comm%enemyMinMod)/roundMod;
+			int commMinLead=(comm%leadMinMod)/enemyMinMod;
+	    	int commNumMiners=(comm%allyMinerMod)/leadMinMod;
+			if (commMinLead > 3*(commNumMiners+1)) {
+				createRobot(rc, RobotType.MINER);
+			}
+		}
+		createRobot(rc, RobotType.SOLDIER);
+		/*
 		if (rc.getTeamLeadAmount(rc.getTeam()) < 40) return;
 		boolean robotMade = false;
 		if (rc.getRoundNum() < 6) {
@@ -521,6 +542,7 @@ public class Archon extends RobotLogic {
 		myBudget -= 75;
 		if (robotMade || myBudget < 40) return;
 		createRobot(rc, RobotType.MINER);
+		*/
 	}
 	
 	private int distanceToClosestCorner(RobotController rc, MapLocation loc) throws GameActionException {
@@ -564,8 +586,8 @@ public class Archon extends RobotLogic {
 		MapLocation[] locs = rc.getAllLocationsWithinRadiusSquared(rc.getLocation(), 5);
 		MapLocation bestLoc = rc.getLocation();
 		int lowestRubble = rc.senseRubble(bestLoc);
-		boolean tooClose = false;
 		for (int i = 0; i < locs.length; i++) {
+			if (rc.canSenseRobotAtLocation(locs[i]) && rc.senseRobotAtLocation(locs[i]).type == RobotType.ARCHON) continue;
 			if (rc.senseRubble(locs[i]) < lowestRubble) {
 				bestLoc = locs[i];
 				lowestRubble = rc.senseRubble(locs[i]);

@@ -10,8 +10,8 @@ public class RobotPlayer {
 	        case SOLDIER:    robot=new Soldier(); break;
 	        case LABORATORY: 
 	        case WATCHTOWER: robot=new WatchTower(); break;
-	        case BUILDER:	robot=new Builder(); break;
-	        case SAGE:       break;
+	        case BUILDER:	 robot=new Builder(); break;
+	        case SAGE:       robot=new Sage(); break;
 		}
 
         while (true) {
